@@ -304,18 +304,17 @@ fun run-loop( s : sched ) : io ()
       if s.is-root-done then ()
       elif s.waiting-count == 0 then ()   // nothing can ever wake: deadlock
       else
-        // Block on the loop until something completes.  A bounded wait keeps
-        // a stuck request from wedging the process forever.
-        run-once(1000)
-        val woke = drain-completions(s)
-        if woke then run-loop(s)
+        // Drain first, block second.  An `arm-*` can complete *synchronously*
+        // -- an accept served from the listener's backlog does -- and blocking
+        // on the loop with a completion already sitting in the queue stalls
+        // for the whole timeout before anyone notices it.
+        if drain-completions(s) then run-loop(s)
         else
-          // The wait timed out with nothing to show for it.  If the group is
-          // cancelling, wake the parked tasks so they can unwind.
-          if s.is-cancelling-now then
-            s.wake-all-cancelled
+          run-once(1000)
+          if drain-completions(s) then run-loop(s)
+          else
+            if s.is-cancelling-now then s.wake-all-cancelled
             run-loop(s)
-          else run-loop(s)
 
 // Move every queued completion to the task waiting on it.  Returns True if
 // anything was woken.

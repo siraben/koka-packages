@@ -23,6 +23,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
+#include <time.h>
 
 /* --------------------------------------------------------------- state --- */
 
@@ -274,15 +275,36 @@ static void kk_uv_read_cb(uv_stream_t* st, ssize_t nread, const uv_buf_t* buf) {
   }
 }
 
+/* Every path through this callback must consume the pending connection with
+   `uv_accept`.  libuv stops polling the listening handle for good if the
+   callback returns without accepting -- the handle still reports itself as
+   active, so the failure looks like "the server silently stopped accepting"
+   rather than like an error.  That is why the out-of-memory paths below
+   accept into a throwaway handle and close it instead of simply returning. */
+static void kk_uv_drop_pending(uv_stream_t* server) {
+  uv_tcp_t* tmp = (uv_tcp_t*)calloc(1, sizeof(uv_tcp_t));
+  if (tmp == NULL) return;                 /* nothing better is possible */
+  if (uv_tcp_init(g_loop, tmp) != 0) { free(tmp); return; }
+  tmp->data = NULL;
+  if (uv_accept(server, (uv_stream_t*)tmp) == 0) {
+    uv_close((uv_handle_t*)tmp, (uv_close_cb)free);
+  } else {
+    uv_close((uv_handle_t*)tmp, (uv_close_cb)free);
+  }
+}
+
 static void kk_uv_connection_cb(uv_stream_t* server, int status) {
   kk_stream_t* s = (kk_stream_t*)server->data;
-  if (s == NULL) return;
+  if (s == NULL) { kk_uv_drop_pending(server); return; }
   if (status != 0) {
     if (s->accept_req != 0) { kk_uv_push(s->accept_req, status, 0, NULL, 0, NULL); s->accept_req = 0; }
     return;
   }
   kk_stream_t* client = kk_uv_new_stream();
-  if (client == NULL) return;
+  if (client == NULL) {
+    kk_uv_drop_pending(server);
+    return;
+  }
   if (uv_accept(server, (uv_stream_t*)&client->tcp) != 0) {
     uv_close((uv_handle_t*)&client->tcp, kk_uv_on_closed);
     return;
@@ -296,7 +318,9 @@ static void kk_uv_connection_cb(uv_stream_t* server, int status) {
     if (s->backlog_len == s->backlog_cap) {
       int cap = s->backlog_cap == 0 ? 8 : s->backlog_cap * 2;
       int64_t* nb = (int64_t*)realloc(s->backlog, (size_t)cap * sizeof(int64_t));
-      if (nb == NULL) { uv_close((uv_handle_t*)&client->tcp, kk_uv_on_closed); return; }
+      if (nb == NULL) {
+        uv_close((uv_handle_t*)&client->tcp, kk_uv_on_closed); return;
+      }
       s->backlog = nb; s->backlog_cap = cap;
     }
     s->backlog[s->backlog_len++] = client->id;
@@ -437,6 +461,7 @@ static kk_unit_t kk_uv_close_kind(int64_t sid, bool want_listener, kk_context_t*
   kk_stream_t* s = kk_uv_find(sid);
   if (s == NULL || s->closing) return kk_Unit;
   if (s->is_listener != want_listener) return kk_Unit;
+
   s->closing = true;
   if (s->read_req != 0) {
     /* a pending read must be completed, or its task would wait forever */
