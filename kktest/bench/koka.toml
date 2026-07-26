@@ -1,0 +1,19 @@
+# The benchmark for this package.
+#
+# The library is picked up as a *source directory* (`../src`) rather than as a
+# path dependency.  A path dependency records a checksum of the whole
+# dependency tree, and this manifest lives inside that tree: writing
+# `koka.lock` would change the tree, which would change the checksum the lock
+# has to record, so the lockfile would never converge.
+[package]
+name = "kktest-bench"
+version = "0.1.0"
+koka = ">=3.2,<4"
+
+[sources]
+directories = [".", "../src"]
+
+[dependencies]
+
+[targets.app]
+main = "kktest-bench.kk"
