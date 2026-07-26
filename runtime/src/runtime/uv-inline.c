@@ -442,6 +442,31 @@ static kk_unit_t kk_uv_close(int64_t sid, kk_context_t* _ctx) {
   return kk_Unit;
 }
 
+/* Abandon a pending accept or read.
+
+   A timed-out `accept-within` or `read-within` has stopped waiting, but the
+   request is still armed here; without clearing it the next arm would get
+   EBUSY.  The completion is pushed as cancelled so that a task which *is*
+   still parked on it (a cancelled group, say) is woken rather than stranded. */
+static kk_unit_t kk_uv_cancel_accept(int64_t sid, kk_context_t* _ctx) {
+  kk_unused(_ctx);
+  kk_stream_t* s = kk_uv_find(sid);
+  if (s == NULL || s->accept_req == 0) return kk_Unit;
+  kk_uv_push(s->accept_req, UV_ECANCELED, 0, NULL, 0, NULL);
+  s->accept_req = 0;
+  return kk_Unit;
+}
+
+static kk_unit_t kk_uv_cancel_read(int64_t sid, kk_context_t* _ctx) {
+  kk_unused(_ctx);
+  kk_stream_t* s = kk_uv_find(sid);
+  if (s == NULL || s->read_req == 0) return kk_Unit;
+  uv_read_stop((uv_stream_t*)&s->tcp);
+  kk_uv_push(s->read_req, UV_ECANCELED, 0, NULL, 0, NULL);
+  s->read_req = 0;
+  return kk_Unit;
+}
+
 static bool kk_uv_is_open(int64_t sid, kk_context_t* _ctx) {
   kk_unused(_ctx);
   kk_stream_t* s = kk_uv_find(sid);

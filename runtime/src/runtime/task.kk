@@ -270,8 +270,14 @@ fun run-loop( s : sched ) : io ()
       t()
       run-loop(s)
     Nothing ->
-      if s.live-count <= 0 then ()
-      elif s.waiting-count == 0 then ()      // nothing ready and nothing to wait for
+      // The group is finished when nothing can run and nothing is waiting to
+      // be woken.  Deliberately *not* a task counter: a counter has to be
+      // decremented in exactly one place per task and a resumed continuation
+      // makes that easy to get wrong -- an undercount tears the group down
+      // while tasks are still parked, which is how a server loses its
+      // listener mid-run.  "Nothing ready and nothing parked" is the same
+      // condition and cannot drift.
+      if s.waiting-count == 0 then ()
       else
         // Block on the loop until something completes.  A bounded wait keeps
         // a stuck request from wedging the process forever.
@@ -352,9 +358,9 @@ pub fun await( req : int ) : <async|io> completion
 //
 // `finally` is still the right tool *within* a task for regions that do not
 // suspend.
-pub fun with-async-resource( acquire : () -> <async|io> a,
+pub fun with-async-resource( acquire : () -> <async,io|e> a,
                              release : (a) -> io (),
-                             action  : (a) -> <async|io> b ) : <async|io> b
+                             action  : (a) -> <async,io|e> b ) : <async,io|e> b
   val r = acquire()
   defer({ release(r) })
   action(r)

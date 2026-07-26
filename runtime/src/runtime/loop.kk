@@ -98,6 +98,19 @@ pub fun arm-write( stream : int, request : int, data : bytes ) : io int
 pub fun arm-resolve( host : string, request : int ) : io int
   prim-resolve(host, request.int64).int
 
+// Abandon a pending accept or read on a stream.
+//
+// A deadline that expires stops the *task* waiting, but the operation is still
+// armed here; without clearing it the next arm on the same stream fails with
+// EBUSY.  Both are safe to call when nothing is armed.
+pub fun cancel-accept( listener : int ) : io ()
+  prim-cancel-accept(listener.int64)
+  ()
+
+pub fun cancel-read( stream : int ) : io ()
+  prim-cancel-read(stream.int64)
+  ()
+
 // ----------------------------------------------------------------------------
 // streams
 // ----------------------------------------------------------------------------
@@ -182,5 +195,9 @@ extern prim-peer( stream : int64 ) : io string
   c "kk_uv_peer"
 extern prim-resolve( host : string, request : int64 ) : io int32
   c "kk_uv_resolve"
+extern prim-cancel-accept( listener : int64 ) : io ()
+  c "kk_uv_cancel_accept"
+extern prim-cancel-read( stream : int64 ) : io ()
+  c "kk_uv_cancel_read"
 extern prim-strerror( status : int32 ) : string
   c "kk_uv_strerror"

@@ -63,7 +63,11 @@ pub fun accept-within( l : listener, ms : int ) : <async|io> maybe<socket>
   val rc  = arm-accept(l.id, req)
   if rc != 0 then throw("cannot accept: " ++ strerror(rc))
   match await-within(req, ms)
-    Nothing -> Nothing
+    Nothing ->
+      // the deadline won the race: the accept is still armed, so clear it or
+      // the next arm on this listener fails with EBUSY
+      cancel-accept(l.id)
+      Nothing
     Just(c) ->
       if !c.is-ok then throw("accept failed: " ++ c.error-message)
       Just(Socket(c.value))
@@ -83,7 +87,7 @@ pub fun net/connect( host : string, port : int ) : <async|io> socket
   Socket(id)
 
 pub fun with-connection( host : string, port : int,
-                         action : (socket) -> <async|io> a ) : <async|io> a
+                         action : (socket) -> <async,io|e> a ) : <async,io|e> a
   with-async-resource({ net/connect(host, port) }, socket/close, action)
 
 // ----------------------------------------------------------------------------
@@ -107,7 +111,9 @@ pub fun read-within( s : socket, ms : int, max : int = 65536 ) : <async|io> mayb
   val rc  = arm-read(s.id, req, max)
   if rc != 0 then throw("cannot read: " ++ strerror(rc))
   match await-within(req, ms)
-    Nothing -> Nothing
+    Nothing ->
+      cancel-read(s.id)
+      Nothing
     Just(c) ->
       if !c.is-ok then throw("read failed: " ++ c.error-message)
       Just(c.data)
@@ -144,7 +150,7 @@ pub fun peer( s : socket ) : io string
 // Run `action` with a socket, closing it when the current task ends -- on
 // success, on failure, and on cancellation.  See `with-async-resource` for why
 // this defers to task exit rather than using `finally`.
-pub fun with-socket( s : socket, action : (socket) -> <async|io> a ) : <async|io> a
+pub fun with-socket( s : socket, action : (socket) -> <async,io|e> a ) : <async,io|e> a
   with-async-resource({ s }, socket/close, action)
 
 // ----------------------------------------------------------------------------
