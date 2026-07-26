@@ -1,0 +1,15 @@
+[package]
+name = "fileio"
+version = "0.1.0"
+koka = ">=3.2,<4"
+
+[sources]
+directories = ["src"]
+
+[dependencies]
+bytes = { path = "../bytes" }
+resource = { path = "../resource" }
+kktest = { path = "../kktest" }
+
+[targets.test]
+directories = ["test"]
