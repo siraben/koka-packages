@@ -1,0 +1,16 @@
+[package]
+name = "json"
+version = "0.1.0"
+koka = ">=3.2,<4"
+
+[sources]
+directories = ["src"]
+
+[dependencies]
+bytes = { path = "../bytes" }
+hashmap = { path = "../hashmap" }
+strbuilder = { path = "../strbuilder" }
+kktest = { path = "../kktest" }
+
+[targets.test]
+directories = ["test"]
