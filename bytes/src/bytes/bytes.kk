@@ -24,7 +24,8 @@
    | `length`, `at`   | O(1)                      |
    | `cat`            | O(n+m), allocates         |
    | `slice`          | O(len), allocates         |
-   | `(==)`, `compare`| O(n), early exit on length|
+   | `(==)`           | O(n), early exit on length|
+   | `compare`        | O(n), no early exit       |
    | `hash`           | O(n)                      |
 
    Building a sequence by repeated `cat` is O(n^2); use `bytes/builder` for
@@ -41,8 +42,12 @@
    ## Maximum size
 
    A sequence is limited by `kk_ssize_t`, so in practice by available memory.
-   Operations that would exceed that raise an exception rather than truncating
-   or wrapping; see `cat` and `builder`.
+   A builder that cannot grow aborts the process with a message on stderr; it
+   does not truncate.  A short response that looks complete is worse than a
+   crash, and under mimalloc an allocation failure is not survivable anyway.
+   This is deliberately not an exception: that would put `exn` in the row of
+   every `snoc`, and so of every caller of the JSON generator and the HTTP
+   response writer.
 */
 module bytes/bytes
 
@@ -131,7 +136,8 @@ pub fun cat( a : bytes, b : bytes ) : bytes
 pub fun concat( xs : list<bytes> ) : bytes
   xs.foldl(builder-empty(), fn(acc, x) acc.snoc(x)).finish
 
-// `count` octets starting at `start`, clamped to the sequence.  Always a copy.
+// `count` octets starting at `start`, clamped to the sequence.  A copy, except
+// that asking for the whole sequence hands back the same value.
 pub fun slice( b : bytes, start : int, count : int = -1 ) : bytes
   val n     = b.length
   val from  = max(0, min(start, n))
