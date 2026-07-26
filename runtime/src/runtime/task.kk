@@ -17,9 +17,16 @@
 
    > A child task does not outlive its scope.
 
-   `with-task-group` waits for every task spawned inside it before returning,
-   and cancels them all if the body fails or if the group is cancelled from
-   outside.  There is no `detach` in this version.
+   `with-task-group` returns when the *root* task -- the body -- is done.  Any
+   sibling still running at that point is **cancelled and then awaited**, not
+   joined: a task doing useful work when the body returns is stopped, it does
+   not get to finish.  Spawn work you need the result of, and await it, rather
+   than assuming the group will wait.  There is no `detach` in this version.
+
+   Draining gives up after 10000 rounds.  A task that never reaches a
+   suspension point cannot be cancelled by a cooperative scheduler, and the
+   alternative to giving up is hanging forever; a task parked at that point
+   never runs its cleanups.  It is a known limitation, not a guarantee.
 
    ## Cancellation
 
@@ -194,11 +201,12 @@ pub fun is-cancelling( g : task-group ) : io bool
 pub fun cancellation-requested() : <async|io> bool
   cancel-requested()
 
-// Run `body` as the root task of a fresh group and wait for every task in it.
+// Run `body` as the root task of a fresh group.
 //
-// Returns when all tasks have finished.  If any task failed, the first failure
-// is re-raised here -- after the others have been cancelled and awaited, so
-// nothing is left running.
+// Returns when the root task is done; siblings still running are then
+// cancelled and awaited, so nothing is left running -- but a sibling that had
+// not finished is stopped rather than waited for.  If any task failed, the
+// first failure is re-raised here, after the same cancel-and-await.
 pub fun with-task-group( body : (task-group) -> <async|io> a ) : io a
   loop-init()
   val s = sched()

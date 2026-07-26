@@ -134,10 +134,19 @@ fun run-cancel-accept( l : ref<global, list<string>> ) : io ()
       g.cancel
       yield()
 
+// The first connect must succeed, or "connecting now fails" proves nothing --
+// a `with-listener` that bound no socket at all would satisfy it.
 fun server-shutdown-closes-listener() : io bool
-  val p = with-listener(fn(l) l.port)
+  val reachable = ref(False)
+  val p = with-listener fn(l)
+    with-task-group fn(_g)
+      match try({ net/connect("127.0.0.1", l.port) })
+        Ok(s)    -> { s.close; reachable := True }
+        Error(_) -> ()
+    l.port
+  if !(!reachable) then False
   // the listener is closed by with-listener; connecting must now fail
-  with-task-group fn(_g)
+  else with-task-group fn(_g)
     match try({ net/connect("127.0.0.1", p) })
       Error(_) -> True
       Ok(s)    -> { s.close; False }

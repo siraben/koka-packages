@@ -19,9 +19,33 @@
 
    The mechanism is `finally`, whose handler is `final ctl`: it runs when the
    computation ends *for any reason*, including a handler that never resumes.
-   That is what makes cancellation safe -- a cancelled task unwinds through the
-   same path as an exception, and this module does not have to know which
-   effect did the cancelling.
+
+   ## The one place this does not hold: inside a task
+
+   `finally` cannot span a suspension point.  When `runtime/task`'s scheduler
+   captures a continuation and returns without resuming it, Koka treats that
+   computation as ended and runs the `final ctl` **there** -- and then runs it
+   a second time when the task really unwinds.  So a `with-resource` wrapped
+   around anything that awaits releases early *and* releases twice:
+
+   ```
+   acquire, release, <the task is still running>, ..., release
+   ```
+
+   For a socket or a prepared statement that is a use-after-close followed by
+   a double-close.  It is not a bug this module can fix: making the release
+   idempotent would need mutable state, which would fix the effect row to `io`
+   and defeat the polymorphism the next section describes.
+
+   **Inside a task, use `runtime/task`'s `defer` or `with-async-resource`.**
+   Those register the release with the task itself, so it runs once, when the
+   task ends -- including when it ends by cancellation.  `with-resource` is
+   for code that never suspends: the database connections and statements in
+   the reference service, which the single-threaded loop guarantees are used
+   by one task at a time.
+
+   The `:owned` handles below are idempotent (see "Double release" at the end)
+   and are the safe choice if a resource must outlive a lexical scope.
 
    ## Effect polymorphism
 

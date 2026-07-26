@@ -6,5 +6,5 @@ koka = ">=3.2,<4"
 [packages.kktest]
 kind = "path"
 path = "../kktest"
-checksum = "sha256:c1c451b4d04fd95f78a2b37a7a6d508305c77874a14dc46107e6f9055a69dce1"
+checksum = "sha256:ab48e4cc1cb572f1f3d676faa92c2155ae468c49cd0d0da795a39fe9e883f0ac"
 dependencies = []

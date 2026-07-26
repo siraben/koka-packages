@@ -153,7 +153,7 @@ fun main()
         // 'a' was still closed even though closing 'b' threw
         assert-true(t.events.any(fn(e) e == "close a"))
       ),
-      test("a release failure during unwinding is not swallowed", fn()
+      test("one of the two failures is always reported", fn()
         // documented `finally` semantics: the release failure replaces the
         // body failure.  What must never happen is *neither* being reported.
         val t = tracker()

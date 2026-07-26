@@ -7,6 +7,15 @@ import resource/scope
 fun log() : io ref<global, list<string>>
   ref([])
 
+// Position of an event in the recorded order, or -1.  Ordering is the point:
+// "release happened" is satisfied at t=0 by a release that fired far too early.
+fun index-of-event( parts : list<string>, name : string ) : int
+  fun go( xs : list<string>, i : int ) : int
+    match xs
+      Nil -> -1
+      Cons(x, rest) -> if x == name then i else go(rest, i + 1)
+  go(parts, 0)
+
 fun note( l : ref<global, list<string>>, s : string ) : io ()
   l := Cons(s, !l)
 
@@ -84,14 +93,20 @@ fun cleanup-on-cancel() : io string
       else throw-exn(ex)
     Ok(_) -> l.events.join(",")
 
+// `with-async-resource`, not `with-resource`: inside a task the latter's
+// `finally` fires at the first suspension point, so "release" was already in
+// the log before `g.cancel` was even reached and the test passed whether or
+// not cancellation worked.  The marker below is what makes the ordering
+// observable.
 fun run-cleanup( l : ref<global, list<string>> ) : io ()
   with-task-group fn(g)
     spawn(fn()
-      with-resource({ l.note("acquire") }, fn(_x) l.note("release"), fn(_x)
+      with-async-resource({ l.note("acquire") }, fn(_x) l.note("release"), fn(_x)
         sleep(5000)
       )
     )
     sleep(20)
+    l.note("cancel")
     g.cancel
     yield()
 
@@ -176,8 +191,14 @@ fun main()
       ),
       test("resources are released when a task is cancelled", fn()
         val e = cleanup-on-cancel()
+        val parts = e.split(",")
         assert-true(e.contains("acquire"), e)
         assert-true(e.contains("release"), "the resource was not released: " ++ e)
+        // release must come *after* cancellation, not at the first suspension
+        assert-true(index-of-event(parts, "release") > index-of-event(parts, "cancel"),
+                    "the resource was released before cancellation: " ++ e)
+        // and exactly once: a double release is a double close
+        assert-equal(parts.filter(fn(x) x == "release").length, 1, e)
       ),
       test("groups nest", fn()
         val e = nested-groups()
