@@ -1,0 +1,15 @@
+[package]
+name = "logging"
+version = "0.1.0"
+koka = ">=3.2,<4"
+
+[sources]
+directories = ["src"]
+
+[dependencies]
+strbuilder = { path = "../strbuilder" }
+json = { path = "../json" }
+kktest = { path = "../kktest" }
+
+[targets.test]
+directories = ["test"]
