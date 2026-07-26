@@ -1,0 +1,173 @@
+# bytes
+
+Immutable sequences of octets, backed by the Koka runtime's own `kk_bytes_t`,
+plus an append-only builder, fixed-width integer encoding, and an FNV-1a hash.
+It exists because a socket and a file deal in octets, not in characters, and
+because a byte sequence that is not valid UTF-8 must be something a program can
+hold and reject rather than something that corrupts a decoder.  It is
+deliberately *not* a general string library: there is no encoding beyond UTF-8,
+no regular expressions, no formatting, no zero-copy views into other sequences,
+and no mutable byte array.  `slice` copies on purpose, so a four-octet slice of
+a megabyte buffer does not keep the megabyte alive.
+
+## Public API
+
+### Construction
+
+| declaration | signature | what it is |
+| --- | --- | --- |
+| `bytes-empty` | `: bytes` | The empty sequence |
+| `bytes` | `(s : string) : bytes` | UTF-8 encoding of `s`; always succeeds |
+| `bytes` | `(xs : list<int>) : bytes` | From octet values; other values are taken modulo 256 |
+| `replicate` | `(b : int, n : int) : bytes` | `n` copies of one octet |
+| `concat` | `(xs : list<bytes>) : bytes` | Through the builder, so O(total) rather than O(total²) |
+
+### Inspection
+
+| declaration | signature | what it is |
+| --- | --- | --- |
+| `length` | `(b : bytes) : int` | Octets, not characters |
+| `is-empty` / `is-notempty` | `(b : bytes) : bool` | |
+| `at` | `(b : bytes, i : int) : maybe<int>` | The octet at `i` as 0..255, or `Nothing` out of range |
+| `at-exn` | `(b : bytes, i : int) : exn int` | The same, throwing `ExnRange` instead |
+| `list` | `(b : bytes) : list<int>` | Every octet |
+
+### Combining and searching
+
+| declaration | signature | what it is |
+| --- | --- | --- |
+| `(++)` / `cat` | `(a : bytes, b : bytes) : bytes` | Allocates and copies both operands |
+| `slice` | `(b : bytes, start : int, count : int = -1) : bytes` | A copy of the range, clamped; asking for the whole sequence hands back the same value |
+| `take` / `drop` | `(b : bytes, n : int) : bytes` | |
+| `starts-with` | `(b : bytes, pre : bytes) : bool` | |
+| `index-of` | `(b : bytes, sub : bytes, from : int = 0) : maybe<int>` | First occurrence at or after `from` |
+| `split` | `(b : bytes, sep : int) : div list<bytes>` | On one octet; always one more element than there are separators |
+
+### Text
+
+| declaration | signature | what it is |
+| --- | --- | --- |
+| `to-string` | `(b : bytes) : maybe<string>` | `Nothing` when the octets are not valid UTF-8 |
+| `to-string-lossy` | `(b : bytes) : string` | Every invalid sequence becomes U+FFFD |
+| `to-hex` | `(b : bytes) : string` | Lowercase, two characters per octet |
+
+### Equality, ordering, hashing
+
+| declaration | signature | what it is |
+| --- | --- | --- |
+| `(==)` / `(!=)` | `(a : bytes, b : bytes) : bool` | |
+| `compare` | `(a : bytes, b : bytes) : order` | |
+| `hash` | `(b : bytes) : int` | FNV-1a.  Not a cryptographic hash and not offered as one |
+| `show` | `(b : bytes) : string` | `bytes(n)[hex]` |
+
+### Integer encoding
+
+| declaration | signature | what it is |
+| --- | --- | --- |
+| `be16` / `be32` / `le16` / `le32` | `(v : int) : bytes` | Fixed width, explicit endianness |
+| `read-be16` / `read-be32` / `read-le16` / `read-le32` | `(b : bytes, pos : int = 0) : maybe<int>` | Bounds checked; `Nothing` rather than reading past the end |
+
+### The builder
+
+| declaration | signature | what it is |
+| --- | --- | --- |
+| `builder-empty` | `(capacity : int = 64) : builder` | Room for `capacity` octets before the first growth |
+| `reserve` | `(b : builder, n : int) : builder` | Room for `n` more without reallocating |
+| `snoc-byte` | `(b : builder, x : int) : builder` | |
+| `snoc` | `(b : builder, x : bytes) : builder` | |
+| `snoc-string` | `(b : builder, s : string) : builder` | |
+| `length` | `(b : builder) : int` | Qualify as `builder/length` where `:bytes` is also in scope |
+| `finish` | `(b : builder) : bytes` | The accumulated octets; the builder is left empty and reusable |
+
+### Low-level interoperation
+
+| declaration | signature | what it is |
+| --- | --- | --- |
+| `unsafe-bytes-from-raw` | `(r : any) : bytes` | Wrap a boxed `kk_bytes_t` from a C binding |
+| `unsafe-bytes-raw` | `(b : bytes) : any` | Unwrap one for a C binding.  Named for the care it needs |
+
+## Complexity
+
+| operation | cost |
+| --- | --- |
+| `length`, `at` | O(1) |
+| `cat` / `(++)` | O(n + m), allocates and copies both |
+| `slice`, `take`, `drop` | O(len), allocates and copies the selected range |
+| `(==)` | O(n), exits early on differing lengths |
+| `compare` | O(n), no early exit |
+| `hash`, `to-hex`, `to-string` | O(n) |
+| `index-of` | O(n·m) worst case; a naive scan, no Boyer-Moore |
+| builder `snoc*` | amortized O(1), so building a sequence of n octets is O(n) |
+| `concat`, `bytes(list)` | O(total), through the builder |
+| building by repeated `++` | **O(n²)** — use the builder |
+
+Measured on this machine (AMD Ryzen 9 5950X, 32 threads, 126 GiB, Linux 7.0.1
+x86_64, Koka 3.2.7, `--release`, fastest of 3):
+
+| what | n | ms | units/s |
+| --- | ---: | ---: | ---: |
+| builder `snoc` of a 10-octet chunk | 2 000 000 | 41 | 48 780 487 |
+| builder `snoc` of a 10-octet chunk | 8 000 000 | 144 | 55 555 555 |
+| repeated `++` of a 10-octet chunk | 20 000 | 30 | 666 666 |
+| repeated `++` of a 10-octet chunk | 80 000 | 634 | 126 182 |
+| `slice` 4 KiB out of a 1 MiB sequence | 200 000 | 15 | 13 333 333 |
+| `slice` 4 KiB out of a 1 MiB sequence | 800 000 | 57 | 14 035 087 |
+| `hash` 1 MiB, FNV-1a (n = MiB) | 64 | 57 | 1 122 |
+| `hash` 1 MiB, FNV-1a (n = MiB) | 256 | 240 | 1 066 |
+| `index-of`, no match, 1 MiB (n = MiB) | 32 | 92 | 347 |
+| `index-of`, no match, 1 MiB (n = MiB) | 128 | 340 | 376 |
+
+The first two pairs are the point.  Four times the work costs the builder 3.5x
+and repeated `++` 21x: O(n) against O(n²), on identical input.  `slice` and
+`hash` are flat per unit, which is what O(len) and O(n) look like.  `index-of`
+scans about 350 MiB/s, and `hash` about 1.1 GiB/s.
+
+Reproduce with `./run-benchmarks.sh bytes` from the repository root.
+
+## Worked example
+
+```koka
+import bytes/bytes
+
+fun main()
+  // Build a small binary frame: a 2-octet big-endian length, then a payload.
+  val payload = bytes("hello")
+  val frame   = builder-empty(16)
+                  .snoc(be16(payload.length))
+                  .snoc(payload)
+                  .finish
+  println(frame.to-hex)                       // 000568656c6c6f
+
+  // Read it back.
+  match frame.read-be16(0)
+    Nothing -> println("truncated frame")
+    Just(n) ->
+      match frame.slice(2, n).to-string
+        Just(text) -> println("payload: " ++ text)
+        Nothing    -> println("payload is not valid UTF-8")
+```
+
+## Limits
+
+* **`slice` is a copy, not a view.**  That is the design, not an oversight: a
+  view would keep the whole source alive, which is how a parser holding one
+  header field pins a megabyte request buffer.  It also means slicing in a loop
+  is O(total), not free.
+* **`index-of` is a naive scan**, so a pathological needle and haystack cost
+  O(n·m).  Nothing in this tree searches for attacker-controlled needles in
+  attacker-controlled haystacks, and this would need revisiting if something
+  did.
+* **`hash` is FNV-1a.**  It is not collision resistant and must not be used
+  where an adversary picks the keys and the cost of collisions matters.  It is
+  here so `:bytes` can be a `hashmap` key.
+* **An allocation failure in the builder aborts the process** with a message on
+  stderr, rather than throwing or truncating.  A short response that looks
+  complete is worse than a crash, and an exception would put `exn` in the row
+  of every `snoc` and therefore of every caller of the JSON generator and the
+  HTTP response writer.
+* **A builder is linear by convention, not by type.**  Each operation returns
+  the builder and the previous value must not be used again; using a stale one
+  appends to the same buffer and is not detected.
+* **`unsafe-bytes-from-raw` and `unsafe-bytes-raw` are unchecked.**  They are
+  safe exactly when the `any` really is a boxed `kk_bytes_t`.
+* **Size is bounded by `kk_ssize_t`**, so in practice by available memory.
