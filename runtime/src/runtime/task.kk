@@ -243,28 +243,50 @@ fun read-slot( r : ref<global, maybe<a>> ) : io maybe<a>
   !r
 
 // Wrap one task body in the scheduler's handler.
+//
+// Every operation here is `rawctl`, not `ctl`, and that is load bearing.
+//
+// A `ctl` handler that returns without resuming tells Koka the computation was
+// abandoned, so Koka runs its finalizers -- every enclosing `finally`, and so
+// every `with-resource` release.  That is the right default: Koka cannot know
+// that the continuation was parked rather than dropped.  But this scheduler
+// always parks and resumes later, so with `ctl` a resource held across an
+// await was released at the first suspension point and released again when the
+// task really unwound:
+//
+//     acquire, release, body-done, release
+//
+// For a socket or a prepared statement that is a use-after-close followed by a
+// double-close.  `rawctl` hands over the continuation without finalizing, so
+// release happens once, where it should:
+//
+//     acquire, body-done, release
+//
+// The obligation `rawctl` brings is that every captured continuation must be
+// resumed exactly once, or its cleanups never run.  Cancellation resumes with
+// `Cancelled` rather than dropping the task, which is what discharges it.
 fun run-task( s : sched, body : () -> <async|io> () ) : io (() -> io ())
   fn()
     val cleanups : ref<global, list<() -> io ()>> = ref([])
     with handler
-      ctl await-requests(reqs)
+      rawctl await-requests(reqs)
         if s.is-cancelling-now then
           // already cancelling: do not even arm a wait
-          s.push-ready(fn() resume(Cancelled))
+          s.push-ready(fn() rcontext.resume(Cancelled))
         else
-          s.park(reqs, fn(w) resume(w))
-      ctl spawn-task(child)
+          s.park(reqs, fn(w) rcontext.resume(w))
+      rawctl spawn-task(child)
         s.add-live(1)
         s.push-ready(run-task(s, child))
-        s.push-ready(fn() resume(()))
-      ctl yield-now()
-        s.push-ready(fn() resume(()))
-      ctl cancel-requested()
+        s.push-ready(fn() rcontext.resume(()))
+      rawctl yield-now()
+        s.push-ready(fn() rcontext.resume(()))
+      rawctl cancel-requested()
         val flag = s.is-cancelling-now
-        s.push-ready(fn() resume(flag))
-      ctl defer(action)
+        s.push-ready(fn() rcontext.resume(flag))
+      rawctl defer(action)
         add-cleanup(cleanups, action)
-        s.push-ready(fn() resume(()))
+        s.push-ready(fn() rcontext.resume(()))
     // A task's failure is the group's failure, and it cancels the siblings.
     match try({ body() })
       Error(ex) ->

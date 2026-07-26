@@ -189,6 +189,23 @@ fun main()
         assert-true(e.contains("worker start"))
         assert-false(e.contains("worker finished"), "the worker was not cancelled: " ++ e)
       ),
+      // `with-resource`, not `with-async-resource`: this pins the scheduler's
+      // use of `rawctl`.  Under `ctl` the release fires at the first
+      // suspension point and again when the task unwinds, which for a socket
+      // is a use-after-close followed by a double-close.
+      test("a resource held across a suspension point is released once, at the end", fn()
+        val l = log()
+        with-task-group fn(_g)
+          spawn(fn()
+            with-resource({ l.note("acquire") }, fn(_x) l.note("release"), fn(_x)
+              sleep(20)
+              l.note("body-done")
+            )
+          )
+          sleep(80)
+        val e = l.events.join(",")
+        assert-equal(e, "acquire,body-done,release", e)
+      ),
       test("resources are released when a task is cancelled", fn()
         val e = cleanup-on-cancel()
         val parts = e.split(",")
