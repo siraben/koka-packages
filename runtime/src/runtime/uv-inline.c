@@ -49,6 +49,12 @@ typedef struct kk_stream_s {
   int64_t        id;
   uv_tcp_t       tcp;
   bool           closing;
+  /* A listening socket and a connected socket are different things and must
+     not be closable through each other's API.  Without this, a `socket` value
+     that somehow carried a listener's id would take the whole server down --
+     and a single-field value struct makes the two indistinguishable at
+     runtime, so the check belongs here rather than in the type system. */
+  bool           is_listener;
   /* one pending read request at a time; 0 means none */
   int64_t        read_req;
   size_t         read_max;
@@ -316,6 +322,7 @@ static int64_t kk_uv_listen(kk_string_t host, int32_t port, int32_t backlog, kk_
   if (rc != 0) { uv_close((uv_handle_t*)&s->tcp, kk_uv_on_closed); return rc; }
   rc = uv_listen((uv_stream_t*)&s->tcp, (int)backlog, kk_uv_connection_cb);
   if (rc != 0) { uv_close((uv_handle_t*)&s->tcp, kk_uv_on_closed); return rc; }
+  s->is_listener = true;
   return s->id;
 }
 
@@ -422,11 +429,14 @@ static int32_t kk_uv_write(int64_t sid, int64_t req, kk_box_t datab, kk_context_
   return 0;
 }
 
-/* Stop reading and close.  Idempotent: closing twice is not an error. */
-static kk_unit_t kk_uv_close(int64_t sid, kk_context_t* _ctx) {
+/* Stop reading and close.  Idempotent: closing twice is not an error.
+   `want_listener` says which kind of handle the caller believes it has; a
+   mismatch is refused rather than obeyed. */
+static kk_unit_t kk_uv_close_kind(int64_t sid, bool want_listener, kk_context_t* _ctx) {
   kk_unused(_ctx);
   kk_stream_t* s = kk_uv_find(sid);
   if (s == NULL || s->closing) return kk_Unit;
+  if (s->is_listener != want_listener) return kk_Unit;
   s->closing = true;
   if (s->read_req != 0) {
     /* a pending read must be completed, or its task would wait forever */
@@ -440,6 +450,14 @@ static kk_unit_t kk_uv_close(int64_t sid, kk_context_t* _ctx) {
   uv_read_stop((uv_stream_t*)&s->tcp);
   uv_close((uv_handle_t*)&s->tcp, kk_uv_on_closed);
   return kk_Unit;
+}
+
+static kk_unit_t kk_uv_close(int64_t sid, kk_context_t* _ctx) {
+  return kk_uv_close_kind(sid, false, _ctx);
+}
+
+static kk_unit_t kk_uv_close_listener(int64_t sid, kk_context_t* _ctx) {
+  return kk_uv_close_kind(sid, true, _ctx);
 }
 
 /* Abandon a pending accept or read.

@@ -141,6 +141,13 @@ pub fun close-stream( stream : int ) : io ()
   prim-close(stream.int64)
   ()
 
+// Close a *listening* socket.  Separate from `close-stream` so that a
+// connected socket can never close the listener: the two are different kinds
+// of handle and the C side refuses a mismatch.
+pub fun close-listener( stream : int ) : io ()
+  prim-close-listener(stream.int64)
+  ()
+
 pub fun is-open( stream : int ) : io bool
   prim-is-open(stream.int64)
 
@@ -189,6 +196,8 @@ extern prim-write( stream : int64, request : int64, data : any ) : io int32
   c "kk_uv_write"
 extern prim-close( stream : int64 ) : io ()
   c "kk_uv_close"
+extern prim-close-listener( stream : int64 ) : io ()
+  c "kk_uv_close_listener"
 extern prim-is-open( stream : int64 ) : io bool
   c "kk_uv_is_open"
 extern prim-peer( stream : int64 ) : io string

@@ -39,7 +39,7 @@ pub fun port( l : listener ) : io int
   bound-port(l.id)
 
 pub fun listener/close( l : listener ) : io ()
-  close-stream(l.id)
+  close-listener(l.id)
 
 // Run `action` with a listener, closing it on every exit path.
 pub fun with-listener( action : (listener) -> io a,

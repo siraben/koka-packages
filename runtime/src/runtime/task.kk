@@ -84,9 +84,12 @@ struct sched
   cancelling : ref<global, bool>
   // the first failure seen, re-raised in the parent
   failure  : ref<global, maybe<exception>>
+  // set when the group's *root* task has finished; that, not a headcount, is
+  // when the group is over
+  root-done : ref<global, bool>
 
 fun sched() : io sched
-  Sched(ref([]), ref([]), ref(0), ref(False), ref(Nothing))
+  Sched(ref([]), ref([]), ref(0), ref(False), ref(Nothing), ref(False))
 
 // Monomorphic accessors for the scheduler's mutable state.
 //
@@ -113,6 +116,15 @@ fun add-live( s : sched, n : int ) : io ()
 fun failure-of( s : sched ) : io maybe<exception>
   val f = s.failure
   !f
+
+fun is-root-done( s : sched ) : io bool
+  val d = s.root-done
+  !d
+
+fun set-root-done( s : sched ) : io ()
+  val d = s.root-done
+  d := True
+
 
 fun push-ready( s : sched, t : () -> io () ) : io ()
   val r = s.ready
@@ -199,6 +211,7 @@ pub fun with-task-group( body : (task-group) -> <async|io> a ) : io a
   s.push-ready(run-task(s, fn()
     val x = body(g)
     result := Just(x)
+    s.set-root-done
   ))
   s.add-live(1)
 
@@ -209,7 +222,11 @@ pub fun with-task-group( body : (task-group) -> <async|io> a ) : io a
     Nothing  ->
       match read-slot(result)
         Just(x) -> x
-        Nothing -> throw("the root task did not produce a result")
+        Nothing ->
+          // The root produced nothing because it was cancelled; report that as
+          // a cancellation so a caller can tell an orderly stop from a bug.
+          if s.is-cancelling-now then throw(cancelled-message)
+          else throw("the root task did not produce a result")
 
 fun result-slot( _witness : (task-group) -> <async|io> a ) : io ref<global, maybe<a>>
   ref(Nothing)
@@ -243,9 +260,13 @@ fun run-task( s : sched, body : () -> <async|io> () ) : io (() -> io ())
     // A task's failure is the group's failure, and it cancels the siblings.
     match try({ body() })
       Error(ex) ->
-        s.record-failure(ex)
-        s.set-cancelling
-        s.wake-all-cancelled
+        // A sibling that unwinds *because the group is already tearing down*
+        // has not failed; recording it would turn an orderly shutdown into a
+        // reported error in the parent.
+        if !(is-cancellation(ex) && s.is-cancelling-now) then
+          s.record-failure(ex)
+          s.set-cancelling
+          s.wake-all-cancelled
       Ok(_) -> ()
     // The task has really ended now -- not merely suspended -- so this is
     // where its resources are released, newest first.
@@ -270,14 +291,18 @@ fun run-loop( s : sched ) : io ()
       t()
       run-loop(s)
     Nothing ->
-      // The group is finished when nothing can run and nothing is waiting to
-      // be woken.  Deliberately *not* a task counter: a counter has to be
-      // decremented in exactly one place per task and a resumed continuation
-      // makes that easy to get wrong -- an undercount tears the group down
-      // while tasks are still parked, which is how a server loses its
-      // listener mid-run.  "Nothing ready and nothing parked" is the same
-      // condition and cannot drift.
-      if s.waiting-count == 0 then ()
+      // The group is over when its *root* task has finished.  Siblings that
+      // are still parked are then cancelled and drained by `drain`.
+      //
+      // Two earlier conditions were wrong in ways worth recording. A live-task
+      // counter has to be decremented in exactly one place per task, and a
+      // resumed continuation makes that easy to undercount. "Nothing ready and
+      // nothing parked" looks safer but has a window: it is momentarily true
+      // between waking a task and that task re-parking, and a server whose
+      // group ends there loses its listener mid-run. The root finishing is the
+      // condition `with-task-group` actually promises, and it cannot drift.
+      if s.is-root-done then ()
+      elif s.waiting-count == 0 then ()   // nothing can ever wake: deadlock
       else
         // Block on the loop until something completes.  A bounded wait keeps
         // a stuck request from wedging the process forever.
