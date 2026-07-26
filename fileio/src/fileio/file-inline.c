@@ -93,13 +93,17 @@ static kk_ssize_t kk_fio_write_all(int32_t fd, kk_box_t datab, kk_context_t* _ct
   kk_ssize_t len = 0;
   const uint8_t* p = kk_bytes_buf_borrow(data, &len, _ctx);
   kk_ssize_t off = 0;
+  kk_ssize_t r = 0;
   while (off < len) {
     ssize_t n;
     do { n = write((int)fd, p + off, (size_t)(len - off)); } while (n < 0 && errno == EINTR);
-    if (n < 0) return -(kk_ssize_t)errno;
+    if (n < 0) { r = -(kk_ssize_t)errno; goto done; }
     off += (kk_ssize_t)n;
   }
-  return off;
+  r = off;
+done:
+  kk_bytes_drop(data, _ctx);
+  return r;
 }
 
 static int32_t kk_fio_fsync(int32_t fd, kk_context_t* _ctx) {

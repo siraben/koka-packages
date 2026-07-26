@@ -64,6 +64,13 @@ typedef struct kk_stream_s {
   int            backlog_len;
   int            backlog_cap;
   int64_t        accept_req;
+  /* Hard cap on connections accepted-but-not-yet-claimed by Koka.  The
+     `listen(2)` backlog bounds the *kernel* queue; this callback drains that
+     queue into user memory, so without a cap here a server sitting at its
+     connection limit keeps allocating a descriptor per arrival.  When the cap
+     is reached the new connection is closed immediately, which is what
+     backpressure means at this layer. */
+  int            backlog_max;
   struct kk_stream_s* next;
 } kk_stream_t;
 
@@ -84,6 +91,9 @@ static int64_t kk_uv_fresh_id(void) { return g_next_id++; }
 
 static void kk_uv_push(int64_t id, int32_t status, int64_t value,
                        uint8_t* data, size_t len, char* text) {
+  /* 0 is the "queue empty" sentinel of kk_uv_next_completion; pushing it would
+     truncate a drain and strand every completion behind it. */
+  if (id == 0) { free(data); free(text); return; }
   kk_comp_t* c = (kk_comp_t*)calloc(1, sizeof(kk_comp_t));
   if (c == NULL) return;
   c->id = id; c->status = status; c->value = value;
@@ -120,6 +130,9 @@ static void kk_uv_forget(kk_stream_t* s) {
   free(s);
 }
 
+/* Only ever attached to a `uv_tcp_t` embedded in a `kk_stream_t`.  Timers use
+   `kk_uv_timer_closed`; dispatching on the handle type is what keeps the two
+   apart, because `data` alone cannot tell you which struct it points into. */
 static void kk_uv_on_closed(uv_handle_t* h) {
   kk_stream_t* s = (kk_stream_t*)h->data;
   if (s != NULL) kk_uv_forget(s);
@@ -137,9 +150,19 @@ static int32_t kk_uv_init(kk_context_t* _ctx) {
 
 /* Close every handle and run the loop until they are gone, so shutdown does
    not leave descriptors open.  Called once at process shutdown. */
+static void kk_uv_timer_closed(uv_handle_t* h) { free(h); }
+
+/* `uv_walk` visits *every* handle, so the close callback must be chosen by
+   handle type.  Choosing it by `data != NULL` treated a timer request as a
+   stream, read past the end of its allocation and freed garbage. */
 static void kk_uv_walk_close(uv_handle_t* h, void* arg) {
   kk_unused(arg);
-  if (!uv_is_closing(h)) uv_close(h, h->data != NULL ? kk_uv_on_closed : NULL);
+  if (uv_is_closing(h)) return;
+  switch (h->type) {
+    case UV_TCP:   uv_close(h, h->data != NULL ? kk_uv_on_closed : NULL); break;
+    case UV_TIMER: uv_close(h, h->data != NULL ? kk_uv_timer_closed : NULL); break;
+    default:       uv_close(h, NULL); break;
+  }
 }
 
 static int32_t kk_uv_shutdown(kk_context_t* _ctx) {
@@ -173,7 +196,11 @@ static int32_t kk_uv_run_once(int32_t timeout_ms, kk_context_t* _ctx) {
     if (timeout_ms > 0) {
       if (!g_tick_init) { uv_timer_init(g_loop, &g_tick); g_tick_init = true; }
       uv_timer_start(&g_tick, kk_uv_tick_cb, (uint64_t)timeout_ms, 0);
-      uv_unref((uv_handle_t*)&g_tick);   /* must not keep the loop alive */
+      /* Deliberately *not* unref'd.  `uv_unref` clears UV_HANDLE_REF for good
+         and `uv_timer_start` does not restore it, so an unref'd tick makes
+         `uv_run` return immediately when nothing else is armed -- a hot spin,
+         and the timeout stops being a bound at all.  It is stopped right
+         after the run instead, which keeps the loop from being held open. */
     }
     uv_run(g_loop, UV_RUN_ONCE);
     if (timeout_ms > 0 && g_tick_init) uv_timer_stop(&g_tick);
@@ -221,12 +248,46 @@ static kk_string_t kk_uv_strerror(int32_t err, kk_context_t* _ctx) {
 
 /* --------------------------------------------------------------- timer --- */
 
-typedef struct kk_timer_s { uv_timer_t t; int64_t id; } kk_timer_req_t;
+/* Timers are registered so that a deadline which *loses* its race can be
+   stopped.  Without this every `await-within` whose operation won left a live
+   timer in the loop for the whole deadline -- one per socket read, which at
+   any real request rate is hundreds of thousands of live handles. */
+typedef struct kk_timer_s {
+  uv_timer_t t;
+  int64_t    id;
+  struct kk_timer_s* next;
+} kk_timer_req_t;
+
+static kk_timer_req_t* g_timers = NULL;
+
+static void kk_uv_timer_unlink(kk_timer_req_t* r) {
+  kk_timer_req_t** p = &g_timers;
+  while (*p != NULL) {
+    if (*p == r) { *p = r->next; return; }
+    p = &(*p)->next;
+  }
+}
 
 static void kk_uv_timer_cb(uv_timer_t* t) {
   kk_timer_req_t* r = (kk_timer_req_t*)t->data;
   kk_uv_push(r->id, 0, 0, NULL, 0, NULL);
-  uv_close((uv_handle_t*)t, (uv_close_cb)free);
+  kk_uv_timer_unlink(r);
+  uv_close((uv_handle_t*)t, kk_uv_timer_closed);
+}
+
+/* Stop a timer that has not fired.  Safe when it has already fired or never
+   existed. */
+static kk_unit_t kk_uv_timer_stop(int64_t req, kk_context_t* _ctx) {
+  kk_unused(_ctx);
+  for (kk_timer_req_t* r = g_timers; r != NULL; r = r->next) {
+    if (r->id == req) {
+      kk_uv_timer_unlink(r);
+      uv_timer_stop(&r->t);
+      uv_close((uv_handle_t*)&r->t, kk_uv_timer_closed);
+      return kk_Unit;
+    }
+  }
+  return kk_Unit;
 }
 
 /* Complete request `req` after `ms` milliseconds. */
@@ -239,7 +300,9 @@ static int32_t kk_uv_timer_start(int64_t req, int64_t ms, kk_context_t* _ctx) {
   int rc = uv_timer_init(g_loop, &r->t);
   if (rc != 0) { free(r); return (int32_t)rc; }
   rc = uv_timer_start(&r->t, kk_uv_timer_cb, (uint64_t)(ms < 0 ? 0 : ms), 0);
-  if (rc != 0) { uv_close((uv_handle_t*)&r->t, (uv_close_cb)free); return (int32_t)rc; }
+  if (rc != 0) { uv_close((uv_handle_t*)&r->t, kk_uv_timer_closed); return (int32_t)rc; }
+  r->next = g_timers;
+  g_timers = r;
   return 0;
 }
 
@@ -315,8 +378,14 @@ static void kk_uv_connection_cb(uv_stream_t* server, int status) {
   } else {
     /* nobody is waiting yet: remember it.  The backlog is bounded by the
        listen backlog, so this cannot grow without limit. */
+    if (s->backlog_len >= s->backlog_max) {
+      /* refuse: the queue of unclaimed connections is full */
+      uv_close((uv_handle_t*)&client->tcp, kk_uv_on_closed);
+      return;
+    }
     if (s->backlog_len == s->backlog_cap) {
       int cap = s->backlog_cap == 0 ? 8 : s->backlog_cap * 2;
+      if (cap > s->backlog_max) cap = s->backlog_max;
       int64_t* nb = (int64_t*)realloc(s->backlog, (size_t)cap * sizeof(int64_t));
       if (nb == NULL) {
         uv_close((uv_handle_t*)&client->tcp, kk_uv_on_closed); return;
@@ -347,6 +416,7 @@ static int64_t kk_uv_listen(kk_string_t host, int32_t port, int32_t backlog, kk_
   rc = uv_listen((uv_stream_t*)&s->tcp, (int)backlog, kk_uv_connection_cb);
   if (rc != 0) { uv_close((uv_handle_t*)&s->tcp, kk_uv_on_closed); return rc; }
   s->is_listener = true;
+  s->backlog_max = (backlog > 0 ? (int)backlog : 128);
   return s->id;
 }
 
@@ -420,6 +490,9 @@ static int32_t kk_uv_read(int64_t sid, int64_t req, int64_t max, kk_context_t* _
      which silently ends accepting while leaving the handle open and
      reporting itself active.  Refuse rather than corrupt the listener. */
   if (s->is_listener) return UV_EINVAL;
+  /* the handle is closing but still findable until its close callback runs;
+     uv_read_start on it asserts inside libuv, which aborts the process */
+  if (s->closing) return UV_ECANCELED;
   if (s->read_req != 0) return UV_EBUSY;     /* one reader per stream */
   s->read_req = req;
   s->read_max = (size_t)(max <= 0 ? 65536 : max);
@@ -443,21 +516,27 @@ static int32_t kk_uv_write(int64_t sid, int64_t req, kk_box_t datab, kk_context_
   const uint8_t* p = kk_bytes_buf_borrow(data, &len, _ctx);
 
   kk_stream_t* s = kk_uv_find(sid);
-  if (s == NULL) return UV_EBADF;
-  if (s->is_listener) return UV_EINVAL;
+  int32_t r = 0;
+  if (s == NULL)             { r = UV_EBADF;     goto done; }
+  if (s->is_listener)        { r = UV_EINVAL;    goto done; }
+  if (s->closing)            { r = UV_ECANCELED; goto done; }
+  {
+    kk_write_req_t* w = (kk_write_req_t*)calloc(1, sizeof(kk_write_req_t));
+    if (w == NULL) { r = UV_ENOMEM; goto done; }
+    w->req = req;
+    w->buf = (char*)malloc((size_t)(len > 0 ? len : 1));
+    if (w->buf == NULL) { free(w); r = UV_ENOMEM; goto done; }
+    memcpy(w->buf, p, (size_t)len);
+    w->r.data = w;
 
-  kk_write_req_t* w = (kk_write_req_t*)calloc(1, sizeof(kk_write_req_t));
-  if (w == NULL) return UV_ENOMEM;
-  w->req = req;
-  w->buf = (char*)malloc((size_t)(len > 0 ? len : 1));
-  if (w->buf == NULL) { free(w); return UV_ENOMEM; }
-  memcpy(w->buf, p, (size_t)len);
-  w->r.data = w;
-
-  uv_buf_t b = uv_buf_init(w->buf, (unsigned int)len);
-  int rc = uv_write(&w->r, (uv_stream_t*)&s->tcp, &b, 1, kk_uv_write_cb);
-  if (rc != 0) { free(w->buf); free(w); return (int32_t)rc; }
-  return 0;
+    uv_buf_t b = uv_buf_init(w->buf, (unsigned int)len);
+    int rc = uv_write(&w->r, (uv_stream_t*)&s->tcp, &b, 1, kk_uv_write_cb);
+    if (rc != 0) { free(w->buf); free(w); r = (int32_t)rc; goto done; }
+  }
+done:
+  /* the octets were copied into `w->buf`, so the borrow ends here */
+  kk_bytes_drop(data, _ctx);
+  return r;
 }
 
 /* Stop reading and close.  Idempotent: closing twice is not an error.
@@ -480,6 +559,16 @@ static kk_unit_t kk_uv_close_kind(int64_t sid, bool want_listener, kk_context_t*
     kk_uv_push(s->accept_req, UV_ECANCELED, 0, NULL, 0, NULL);
     s->accept_req = 0;
   }
+  /* Connections accepted but never claimed by Koka would otherwise leak a
+     descriptor each for the life of the process. */
+  for (int i = 0; i < s->backlog_len; i++) {
+    kk_stream_t* q = kk_uv_find(s->backlog[i]);
+    if (q != NULL && !q->closing) {
+      q->closing = true;
+      uv_close((uv_handle_t*)&q->tcp, kk_uv_on_closed);
+    }
+  }
+  s->backlog_len = 0;
   uv_read_stop((uv_stream_t*)&s->tcp);
   uv_close((uv_handle_t*)&s->tcp, kk_uv_on_closed);
   return kk_Unit;
