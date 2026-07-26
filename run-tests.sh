@@ -12,7 +12,7 @@ FLAGS="${KOKA_TEST_FLAGS:-}"
 
 # Dependency order, so a failure is reported at its source rather than in
 # everything that depends on it.
-all=(kktest bytes strbuilder hashmap resource fileio)
+all=(kktest bytes strbuilder hashmap resource fileio runtime)
 
 packages=("$@")
 [ ${#packages[@]} -eq 0 ] && packages=("${all[@]}")
