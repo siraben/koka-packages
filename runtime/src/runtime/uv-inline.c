@@ -367,6 +367,7 @@ static int32_t kk_uv_accept(int64_t sid, int64_t req, kk_context_t* _ctx) {
   kk_unused(_ctx);
   kk_stream_t* s = kk_uv_find(sid);
   if (s == NULL) return UV_EBADF;
+  if (!s->is_listener) return UV_EINVAL;
   if (s->backlog_len > 0) {
     int64_t cid = s->backlog[0];
     memmove(s->backlog, s->backlog + 1, (size_t)(s->backlog_len - 1) * sizeof(int64_t));
@@ -414,6 +415,11 @@ static int32_t kk_uv_read(int64_t sid, int64_t req, int64_t max, kk_context_t* _
   kk_unused(_ctx);
   kk_stream_t* s = kk_uv_find(sid);
   if (s == NULL) return UV_EBADF;
+  /* Reading is meaningless on a listening handle, and `uv_read_start` /
+     `uv_read_stop` on one would start and then *stop* its io watcher --
+     which silently ends accepting while leaving the handle open and
+     reporting itself active.  Refuse rather than corrupt the listener. */
+  if (s->is_listener) return UV_EINVAL;
   if (s->read_req != 0) return UV_EBUSY;     /* one reader per stream */
   s->read_req = req;
   s->read_max = (size_t)(max <= 0 ? 65536 : max);
@@ -438,6 +444,7 @@ static int32_t kk_uv_write(int64_t sid, int64_t req, kk_box_t datab, kk_context_
 
   kk_stream_t* s = kk_uv_find(sid);
   if (s == NULL) return UV_EBADF;
+  if (s->is_listener) return UV_EINVAL;
 
   kk_write_req_t* w = (kk_write_req_t*)calloc(1, sizeof(kk_write_req_t));
   if (w == NULL) return UV_ENOMEM;
@@ -461,6 +468,7 @@ static kk_unit_t kk_uv_close_kind(int64_t sid, bool want_listener, kk_context_t*
   kk_stream_t* s = kk_uv_find(sid);
   if (s == NULL || s->closing) return kk_Unit;
   if (s->is_listener != want_listener) return kk_Unit;
+
 
   s->closing = true;
   if (s->read_req != 0) {
@@ -494,7 +502,7 @@ static kk_unit_t kk_uv_close_listener(int64_t sid, kk_context_t* _ctx) {
 static kk_unit_t kk_uv_cancel_accept(int64_t sid, kk_context_t* _ctx) {
   kk_unused(_ctx);
   kk_stream_t* s = kk_uv_find(sid);
-  if (s == NULL || s->accept_req == 0) return kk_Unit;
+  if (s == NULL || !s->is_listener || s->accept_req == 0) return kk_Unit;
   kk_uv_push(s->accept_req, UV_ECANCELED, 0, NULL, 0, NULL);
   s->accept_req = 0;
   return kk_Unit;
@@ -503,7 +511,7 @@ static kk_unit_t kk_uv_cancel_accept(int64_t sid, kk_context_t* _ctx) {
 static kk_unit_t kk_uv_cancel_read(int64_t sid, kk_context_t* _ctx) {
   kk_unused(_ctx);
   kk_stream_t* s = kk_uv_find(sid);
-  if (s == NULL || s->read_req == 0) return kk_Unit;
+  if (s == NULL || s->is_listener || s->read_req == 0) return kk_Unit;
   uv_read_stop((uv_stream_t*)&s->tcp);
   kk_uv_push(s->read_req, UV_ECANCELED, 0, NULL, 0, NULL);
   s->read_req = 0;
