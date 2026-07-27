@@ -18,7 +18,7 @@ dependencies = ["kktest"]
 [packages.json]
 kind = "path"
 path = "../../json"
-checksum = "sha256:a278bfbab8261a9aa1bf458ba2c131272ee5a04ff76a56e5dc1efa4d4d8a462b"
+checksum = "sha256:aa12f05e965163b09a9c00fc91c10b27b9ceb3c566e40ea26cde8b4f4c5f561f"
 dependencies = ["bytes", "hashmap", "kktest", "strbuilder"]
 
 [packages.kktest]

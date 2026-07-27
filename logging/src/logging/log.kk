@@ -54,6 +54,11 @@ pub fun bool/field( name : string, v : bool ) : field
   (name, if v then "true" else "false")
 
 // The logging effect.  `log` is the only operation; everything else is sugar.
+//
+// Not `linear`, though both operations are tail-resumptive: a `linear` effect
+// requires its handlers to use only linear effects, and every handler here
+// emits through `io`, which contains `exn`.  The compiler rejects it with
+// "handler for logger needs to be linear but uses a non-linear effect: exn".
 pub effect logger
   fun log-record( lvl : level, message : string, fields : list<field> ) : ()
   // Fields that every record from here on carries.

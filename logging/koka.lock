@@ -6,29 +6,29 @@ koka = ">=3.2,<4"
 [packages.bytes]
 kind = "path"
 path = "../bytes"
-checksum = "sha256:de12bbb1f40812d4ddc74fa88e87005d82aa25d5c1f403991bc80e6cd83b0a03"
+checksum = "sha256:6e929fb770d95a353181a79a501dd4b09e6afd78422b339a49c2bee0fb210638"
 dependencies = ["kktest"]
 
 [packages.hashmap]
 kind = "path"
 path = "../hashmap"
-checksum = "sha256:3bc5315af9d6578ef56249bce02f1cc65cb9432a32db62f0ff51e48a000cc8d7"
+checksum = "sha256:5d692b43642463756516ee2e78d438e8119d692336228151f850f3275690691b"
 dependencies = ["kktest"]
 
 [packages.json]
 kind = "path"
 path = "../json"
-checksum = "sha256:a278bfbab8261a9aa1bf458ba2c131272ee5a04ff76a56e5dc1efa4d4d8a462b"
+checksum = "sha256:bca33ee1cc246621282e88ef725229b0e8f56ac488ba5ce25d2ef0eab4a808c8"
 dependencies = ["bytes", "hashmap", "kktest", "strbuilder"]
 
 [packages.kktest]
 kind = "path"
 path = "../kktest"
-checksum = "sha256:a6841b12d3085f9af3210c91dc680229f11628e3068d789f864d5b961ab776ef"
+checksum = "sha256:0211558fcfbd075a0100790a19a77e6ad85cfd756d33fe3e6271d6e3835a37a1"
 dependencies = []
 
 [packages.strbuilder]
 kind = "path"
 path = "../strbuilder"
-checksum = "sha256:30ab0de52e220c5d518483e34179c3b830f5ecacb7fea7e2dd7a25ba719aaa15"
+checksum = "sha256:431a8275388bec11f20886f95d7683af3b1ef26474894c89570d1fdd40561947"
 dependencies = ["bytes", "kktest"]
