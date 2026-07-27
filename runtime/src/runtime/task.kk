@@ -244,27 +244,18 @@ fun read-slot( r : ref<global, maybe<a>> ) : io maybe<a>
 
 // Wrap one task body in the scheduler's handler.
 //
-// Every operation here is `rawctl`, not `ctl`, and that is load bearing.
+// Every operation is `rawctl`, not `ctl`, and that is load bearing.  A `ctl`
+// handler returning without resuming tells Koka the computation was abandoned,
+// so it runs the finalizers -- every enclosing `finally`, and so every
+// `with-resource` release.  That is right in general and wrong here: this
+// scheduler parks and resumes later, so a resource held across an await would
+// be released at the suspension point and again at unwind, which for a socket
+// is a use-after-close then a double-close.  `rawctl` hands the continuation
+// over without finalizing.
 //
-// A `ctl` handler that returns without resuming tells Koka the computation was
-// abandoned, so Koka runs its finalizers -- every enclosing `finally`, and so
-// every `with-resource` release.  That is the right default: Koka cannot know
-// that the continuation was parked rather than dropped.  But this scheduler
-// always parks and resumes later, so with `ctl` a resource held across an
-// await was released at the first suspension point and released again when the
-// task really unwound:
-//
-//     acquire, release, body-done, release
-//
-// For a socket or a prepared statement that is a use-after-close followed by a
-// double-close.  `rawctl` hands over the continuation without finalizing, so
-// release happens once, where it should:
-//
-//     acquire, body-done, release
-//
-// The obligation `rawctl` brings is that every captured continuation must be
-// resumed exactly once, or its cleanups never run.  Cancellation resumes with
-// `Cancelled` rather than dropping the task, which is what discharges it.
+// The obligation is that every captured continuation is resumed exactly once
+// or its cleanups never run.  Cancellation resumes with `Cancelled` rather
+// than dropping the task, which discharges it.
 fun run-task( s : sched, body : () -> <async|io> () ) : io (() -> io ())
   fn()
     val cleanups : ref<global, list<() -> io ()>> = ref([])
@@ -442,12 +433,16 @@ pub fun yield() : <async|io> ()
   if cancel-requested() then throw-cancelled()
 
 // Sleep for `ms` milliseconds.  Cancellable.
+//
+// A cancelled sleep stops its timer on the way out.  Nothing is waiting on it
+// any more, and a `sleep(30000)` that is cancelled after a millisecond would
+// otherwise hold a `uv_timer_t` for the remaining thirty seconds.
 pub fun sleep( ms : int ) : <async|io> ()
   val req = fresh-request()
-  val rc = arm-timer(req, ms)
-  if rc != 0 then throw("cannot start a timer: " ++ strerror(rc))
-  await(req)
-  ()
+  check-uv(arm-timer(req, ms), "cannot start a timer")
+  match await-requests([req])
+    Cancelled    -> { cancel-timer(req); throw-cancelled() }
+    Completed(_) -> ()
 
 // Wait for a request with a deadline: the request and a timer race, and
 // whichever completes first wins.  `Nothing` means the deadline passed.
@@ -455,10 +450,19 @@ pub fun sleep( ms : int ) : <async|io> ()
 // This is the cancellable timeout that every socket operation uses.  It is a
 // real race, not a poll: the task is parked on both ids at once and the
 // scheduler resumes it with whichever arrives.
+//
+// Whichever way the race ends, the timer is stopped before returning.  The
+// deadline usually *loses* -- the read completes long before it expires -- and
+// a timer left armed then holds a libuv handle for the rest of its interval
+// and fires a completion no task is parked on.  At `http/server`'s 30 s idle
+// timeout, one read per request, that is a live handle per request for thirty
+// seconds.  `cancel-timer` is a no-op on a timer that has already fired, so
+// the arm where the deadline *won* costs nothing but says what it means.
 pub fun await-within( req : int, ms : int ) : <async|io> maybe<completion>
   val timer = fresh-request()
-  val rc = arm-timer(timer, ms)
-  if rc != 0 then throw("cannot start a timer: " ++ strerror(rc))
+  check-uv(arm-timer(timer, ms), "cannot start a timer")
   match await-requests([req, timer])
-    Cancelled    -> throw-cancelled()
-    Completed(c) -> if c.request == req then Just(c) else Nothing
+    Cancelled -> { cancel-timer(timer); throw-cancelled() }
+    Completed(c) ->
+      cancel-timer(timer)
+      if c.request == req then Just(c) else Nothing

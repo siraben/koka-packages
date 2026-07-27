@@ -169,6 +169,34 @@ fun timeout-does-not-expire() : io string
       Nothing -> "timed out"
       Just(_) -> "completed"
 
+// A deadline that *loses* its race must be stopped, not left armed.  Ten races
+// the request wins, each with a deadline an hour out: if they are not stopped,
+// ten `uv_timer_t` handles stay live and each later fires a completion nobody
+// is parked on.
+fun losing-deadlines-are-stopped() : io int
+  with-task-group fn(_g)
+    val before = live-timers()
+    fun go( i : int ) : <async|io> ()
+      if i >= 10 then ()
+      else
+        val now = fresh-request()
+        check-uv(arm-timer(now, 0), "cannot start a timer")
+        match await-within(now, 3600000)
+          Just(_) -> go(i + 1)
+          Nothing -> throw("an hour-long deadline beat a 0 ms timer")
+    go(0)
+    live-timers() - before
+
+// The same obligation on the other suspension point that owns a timer: a
+// cancelled `sleep` has to stop the one it armed.
+fun a-cancelled-sleep-stops-its-timer() : io int
+  with-task-group fn(_g)
+    val before = live-timers()
+    with-task-group fn(_inner)
+      spawn(fn() sleep(3600000))
+      yield()                       // let the child reach the park
+    live-timers() - before
+
 fun main()
   run-tests([
     group("tasks", [
@@ -248,6 +276,14 @@ fun main()
       ),
       test("a deadline that does not pass reports completion", fn()
         assert-equal(timeout-does-not-expire(), "completed")
+      ),
+      test("a deadline that loses its race is stopped", fn()
+        assert-equal(losing-deadlines-are-stopped(), 0,
+                     "losing deadlines were left armed in the loop")
+      ),
+      test("a cancelled sleep stops its timer", fn()
+        assert-equal(a-cancelled-sleep-stops-its-timer(), 0,
+                     "a cancelled sleep left its timer armed")
       ),
     ]),
   ])

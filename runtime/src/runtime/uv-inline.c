@@ -290,6 +290,17 @@ static kk_unit_t kk_uv_timer_stop(int64_t req, kk_context_t* _ctx) {
   return kk_Unit;
 }
 
+/* How many timers are armed and have not fired yet.  Exposed for the same
+   reason as `kk_uv_pending`: "the deadline that lost its race was stopped" is
+   otherwise a property nothing can assert, and it was silently false for as
+   long as `kk_uv_timer_stop` had no Koka binding. */
+static int32_t kk_uv_live_timers(kk_context_t* _ctx) {
+  kk_unused(_ctx);
+  int n = 0;
+  for (kk_timer_req_t* r = g_timers; r != NULL; r = r->next) n++;
+  return (int32_t)n;
+}
+
 /* Complete request `req` after `ms` milliseconds. */
 static int32_t kk_uv_timer_start(int64_t req, int64_t ms, kk_context_t* _ctx) {
   kk_unused(_ctx);
@@ -319,16 +330,19 @@ static void kk_uv_alloc_cb(uv_handle_t* h, size_t suggested, uv_buf_t* buf) {
 static void kk_uv_read_cb(uv_stream_t* st, ssize_t nread, const uv_buf_t* buf) {
   kk_stream_t* s = (kk_stream_t*)st->data;
   if (s == NULL) { free(buf->base); return; }
+  /* `nread == 0` is libuv's EAGAIN: a buffer was allocated and nothing turned
+     out to be readable.  It is explicitly *not* end of stream, and it is the
+     one case that must not complete the request -- Koka reports an empty read
+     as "the peer closed", so completing here would tear down a live keep-alive
+     connection on a spurious wake-up.  The read stays armed; the next callback
+     on this stream carries the real data, EOF, or error. */
+  if (nread == 0) { free(buf->base); return; }
   int64_t req = s->read_req;
   s->read_req = 0;
   uv_read_stop(st);                    /* one read per request */
   if (nread > 0) {
     kk_uv_push(req, 0, nread, (uint8_t*)buf->base, (size_t)nread, NULL);
     /* the payload is now owned by the completion */
-  } else if (nread == 0) {
-    free(buf->base);
-    /* nothing was available after all: complete with an empty read */
-    kk_uv_push(req, 0, 0, NULL, 0, NULL);
   } else {
     free(buf->base);
     /* UV_EOF is reported as status 0 with zero octets, which is what a
@@ -420,16 +434,21 @@ static int64_t kk_uv_listen(kk_string_t host, int32_t port, int32_t backlog, kk_
   return s->id;
 }
 
-/* The port actually bound, which matters when port 0 was requested. */
+/* The port actually bound, which matters when port 0 was requested.
+   A bound port is 0..65535, so a negative result is an error rather than a
+   port -- and it says *which* error, because "no such stream", "getsockname
+   failed" and "not an IPv4 socket" are three different problems and a single
+   `-1` for all three is what let a listener report itself as `:-1`. */
 static int32_t kk_uv_bound_port(int64_t sid, kk_context_t* _ctx) {
   kk_unused(_ctx);
   kk_stream_t* s = kk_uv_find(sid);
-  if (s == NULL) return -1;
+  if (s == NULL) return UV_EBADF;
   struct sockaddr_storage ss;
   int len = sizeof(ss);
-  if (uv_tcp_getsockname(&s->tcp, (struct sockaddr*)&ss, &len) != 0) return -1;
+  int rc = uv_tcp_getsockname(&s->tcp, (struct sockaddr*)&ss, &len);
+  if (rc != 0) return (int32_t)rc;
   if (ss.ss_family == AF_INET) return (int32_t)ntohs(((struct sockaddr_in*)&ss)->sin_port);
-  return -1;
+  return UV_EAFNOSUPPORT;
 }
 
 /* Arm an accept.  Completes immediately if a connection is already waiting. */

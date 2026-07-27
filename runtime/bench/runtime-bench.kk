@@ -79,10 +79,14 @@ fun main()
     measure("sleep(0) (arm timer + park)",  80000, fn() in-group(fn() sleep-loop(80000))),
     measure("spawn a task that returns",     50000, fn() spawn-bench(50000)),
     measure("spawn a task that returns",    200000, fn() spawn-bench(200000)),
-    // The ready queue is a list appended to at the tail, and the channel buffer
-    // is too, so both are O(len) per push.  The two channel rows differ only in
-    // capacity: at 16 the buffer never holds more than 16 items, and at 32k it
-    // holds everything that has been sent.  The gap is that append.
+    // The two channel rows differ only in capacity: at 16 the buffer never
+    // holds more than 16 items, and at 32k it holds everything that has been
+    // sent.  This pair is here because it used to expose a quadratic append --
+    // `items ++ [x]` per send, plus an `is-full` that measured the buffer with
+    // `length` -- which made the wide row 310x the narrow one.  The buffer is
+    // now a two-list queue with its size kept alongside, so the wide row is
+    // the *cheap* one and the narrow row pays for parking the producer at
+    // capacity.  Keep both: the pair is what would show the append coming back.
     measure("channel send+receive, cap 16",  20000, fn() channel-bench(20000, 16)),
     measure("channel send+receive, cap 32k", 20000, fn() channel-bench(20000, 32768)),
   ])

@@ -23,24 +23,62 @@ pub struct completion
   request : int
   // 0 on success, a negative libuv error code otherwise.
   status  : int
-  // A new stream id (accept, connect) or an octet count (read).
+  // The one number the operation produced, if it produced one: a new stream id
+  // for an accept, and the octet count for a read (which is also `data.length`,
+  // so nothing here reads it).  Which of the two it is follows from which
+  // `arm-*` created the request, and the task that armed it is the only one
+  // that ever sees the completion -- so the caller already knows, and tagging
+  // it would only add a branch at each use site that no input can reach.
   value   : int
   data    : bytes
   text    : string
 
-pub fun is-ok( c : completion ) : bool
-  c.status == 0
+// Why a request failed.  Kept as a value rather than folded into a message:
+// the numeric status is what tells a cancellation apart from ECONNRESET, and a
+// caller that has only prose has to match on substrings to recover it.
+pub struct uv-error
+  // a negative libuv error code
+  status  : int
+  message : string
 
-pub fun error-message( c : completion ) : string
-  if c.status == 0 then "" else prim-strerror(c.status.int32)
+// Pair a libuv status with its message.  Every failure in this module is built
+// through here, so no caller has to remember to look the text up.
+pub fun uv-error-of( status : int ) : uv-error
+  Uv-error(status, prim-strerror(status.int32))
+
+// The failure a completion carries, or `Nothing` when it succeeded.
+//
+// `Nothing` rather than an empty message: the earlier `error-message` returned
+// `""` for success, which is the same string a failure with no message would
+// produce, so "it worked" and "it failed, silently" were indistinguishable.
+pub fun error( c : completion ) : maybe<uv-error>
+  if c.status == 0 then Nothing else Just(uv-error-of(c.status))
+
+// Raised when a libuv operation fails.  The status travels in the exception's
+// *info*, where a handler can match on it, rather than only inside the message.
+//
+// Folding it into the message meant a caller who needed to tell a cancellation
+// from an ECONNRESET had to match on substrings of prose that was assembled
+// for a human.  `exception-info` is an open type, which is the mechanism for
+// exactly this -- the same reason `ExnCancelled` exists in `runtime/task`.
+pub extend type exception-info
+  ExnUv( status : int )
+
+// The message is `what ++ ": " ++ the libuv text`, which is what every call
+// site here spelled out by hand before.
+pub fun throw-uv( what : string, e : uv-error ) : exn a
+  throw-exn(Exception(what ++ ": " ++ e.message, ExnUv(e.status)))
+
+// The common shape: a non-zero return from an `arm-*` or a setup call.
+pub fun check-uv( status : int, what : string ) : exn ()
+  if status != 0 then throw-uv(what, uv-error-of(status))
 
 // ----------------------------------------------------------------------------
 // lifecycle
 // ----------------------------------------------------------------------------
 
 pub fun loop-init() : io ()
-  val r = prim-init().int
-  if r != 0 then throw("cannot start the event loop: " ++ prim-strerror(r.int32))
+  check-uv(prim-init().int, "cannot start the event loop")
 
 // Close every handle and shut the loop down.  Safe to call more than once.
 pub fun loop-shutdown() : io ()
@@ -69,6 +107,12 @@ pub fun run-once( timeout-ms : int = -1 ) : io int
 pub fun pending() : io int
   prim-pending().int
 
+// How many timers are armed and have not fired yet.  Exposed for the same
+// reason as `pending`: it is the only way to assert that a deadline which lost
+// its race was actually stopped, rather than to assume it.
+pub fun live-timers() : io int
+  prim-live-timers().int
+
 // Take the next completion, or `Nothing` when the queue is empty.
 pub fun next-completion() : io maybe<completion>
   val id = prim-next-completion().int
@@ -85,6 +129,21 @@ pub fun next-completion() : io maybe<completion>
 
 pub fun arm-timer( request : int, ms : int ) : io int
   prim-timer-start(request.int64, ms.int64).int
+
+// Stop a timer that has not fired, so it neither holds a handle open nor
+// completes a request nobody is waiting on any more.
+//
+// The deadline in a race normally *loses*: `await-within` returns as soon as
+// the operation completes, and without this the timer stayed armed for the
+// rest of its interval.  At `http/server`'s 30 s idle timeout that is one live
+// `uv_timer_t` per socket read for thirty seconds, each of which then fires a
+// completion that is drained and discarded.
+//
+// Safe when the timer has already fired or never existed: request ids are
+// never reused, so this cannot stop somebody else's timer.
+pub fun cancel-timer( request : int ) : io ()
+  prim-timer-stop(request.int64)
+  ()
 
 pub fun arm-accept( listener : int, request : int ) : io int
   prim-accept(listener.int64, request.int64).int
@@ -118,19 +177,24 @@ pub fun cancel-read( stream : int ) : io ()
 // Bind and listen.  Returns a stream id, or throws with the libuv message.
 pub fun listen( host : string, port : int, backlog : int = 128 ) : io int
   val r = prim-listen(host, port.int32, backlog.int32).int
-  if r < 0 then throw("cannot listen on " ++ host ++ ":" ++ port.show ++ ": " ++ prim-strerror(r.int32))
+  if r < 0 then throw-uv("cannot listen on " ++ host ++ ":" ++ port.show, uv-error-of(r))
   r
 
 // Start connecting.  Returns the stream id immediately; `request` completes
 // when the connection is established or fails.
 pub fun connect( host : string, port : int, request : int ) : io int
   val r = prim-connect(host, port.int32, request.int64).int
-  if r < 0 then throw("cannot connect to " ++ host ++ ":" ++ port.show ++ ": " ++ prim-strerror(r.int32))
+  if r < 0 then throw-uv("cannot connect to " ++ host ++ ":" ++ port.show, uv-error-of(r))
   r
 
 // The port actually bound; useful when port 0 was requested.
-pub fun bound-port( stream : int ) : io int
-  prim-bound-port(stream.int64).int
+//
+// `Left` when there is no such stream, when `getsockname` fails, or when the
+// socket is not IPv4.  A single `-1` collapsed those three conditions into a
+// number a caller then went on to print as a port; the error says which.
+pub fun bound-port( stream : int ) : io either<uv-error, int>
+  val r = prim-bound-port(stream.int64).int
+  if r < 0 then Left(uv-error-of(r)) else Right(r)
 
 pub fun peer-address( stream : int ) : io string
   prim-peer(stream.int64)
@@ -182,6 +246,10 @@ extern prim-now() : io int64
   c "kk_uv_now"
 extern prim-timer-start( request : int64, ms : int64 ) : io int32
   c "kk_uv_timer_start"
+extern prim-timer-stop( request : int64 ) : io ()
+  c "kk_uv_timer_stop"
+extern prim-live-timers() : io int32
+  c "kk_uv_live_timers"
 extern prim-listen( host : string, port : int32, backlog : int32 ) : io int64
   c "kk_uv_listen"
 extern prim-bound-port( stream : int64 ) : io int32

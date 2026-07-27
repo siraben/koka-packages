@@ -206,6 +206,38 @@ fun channel-send-after-close() : io bool
       Error(_) -> True
       Ok(_)    -> False
 
+fun waiter-count( r : ref<global, list<int>> ) : io int
+  (!r).length
+
+// Two senders park on a full channel in an inner group, and the inner group's
+// teardown cancels them.  Each has to take its request id out of the waiter
+// list on the way out.
+fun channel-cancelled-senders-leave-no-waiters() : io int
+  with-task-group fn(_g)
+    val c : channel<int> = channel(1)
+    c.send(0)                              // the channel is now full
+    with-task-group fn(_inner)
+      spawn(fn() c.send(1))
+      spawn(fn() c.send(2))
+      yield()                              // let both reach the park
+    waiter-count(c.senders)
+
+// The consequence of leaving them behind: a receive hands its wake-up to the
+// first id in the list, and if that is a task that no longer exists the wake-up
+// is lost.  A live sender then waits forever with a free slot in front of it.
+fun channel-live-sender-outlives-a-cancelled-one() : io int
+  with-task-group fn(_g)
+    val c : channel<int> = channel(1)
+    c.send(0)
+    with-task-group fn(_inner)
+      spawn(fn() c.send(1))                // parks, then is cancelled
+      yield()
+    spawn(fn() c.send(7))                  // parks: the channel is still full
+    sleep(10)                              // park the root so the loop runs
+    c.receive                              // frees a slot; must wake the sender
+    sleep(20)
+    c.count                                // 1 once the live sender got through
+
 fun main()
   run-tests([
     group("tcp", [
@@ -259,5 +291,13 @@ fun main()
         assert-throws({ val c : channel<int> = channel(0); () },
                       containing = "capacity")
       ),
+      test("a cancelled sender takes its waiter id with it", fn()
+        assert-equal(channel-cancelled-senders-leave-no-waiters(), 0,
+                     "a cancelled sender left its request id in the waiter list")
+      , timeout-s = 30),
+      test("a live sender is still woken after a cancelled one", fn()
+        assert-equal(channel-live-sender-outlives-a-cancelled-one(), 1,
+                     "the wake-up went to a task that no longer exists")
+      , timeout-s = 30),
     ]),
   ])

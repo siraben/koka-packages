@@ -43,7 +43,7 @@ select over arbitrary futures.
 | --- | --- | --- |
 | `socket` / `listener` | `value struct { id : int }` | Integer ids; raw handles never leave `runtime/loop` |
 | `listen` | `(host : string = "127.0.0.1", port : int = 0, backlog : int = 128) : io listener` | Port 0 asks the OS for a free port.  Qualify as `net/listen` |
-| `port` | `(l : listener) : io int` | Which port was actually bound |
+| `port` | `(l : listener) : io int` | Which port was actually bound.  Raises if it cannot be determined, rather than returning the `-1` a caller would go on to print in a URL |
 | `close` | `(l : listener) : io ()` | Qualify as `listener/close` |
 | `with-listener` | `(action : (listener) -> io a, host, port, backlog) : io a` | |
 | `accept` | `(l : listener) : <async\|io> socket` | Cancellable |
@@ -76,12 +76,29 @@ The only module that touches libuv.  It exposes request ids and completions;
 no raw native handle leaves it, and libuv callbacks never call into Koka — they
 append to a completion queue that `next-completion` drains.  `loop-init`,
 `loop-shutdown`, `fresh-request`, `now-ms`, `run-once`, `pending`,
-`next-completion`, the `arm-*` family, `cancel-accept`, `cancel-read`,
-`listen`, `connect`, `bound-port`, `peer-address`, `close-stream`,
-`close-listener`, `is-open`, `strerror`, and the `completion` struct
-(`request`, `status`, `value`, `data`, `text`) with `is-ok` and
-`error-message`.  Everything above is written against `arm-*` plus
-`next-completion`; a caller normally does not need this module directly.
+`live-timers`, `next-completion`, the `arm-*` family, `cancel-timer`,
+`cancel-accept`, `cancel-read`, `listen`, `connect`, `bound-port`,
+`peer-address`, `close-stream`, `close-listener`, `is-open`, `strerror`, and
+the `completion` struct (`request`, `status`, `value`, `data`, `text`).
+Everything above is written against `arm-*` plus `next-completion`; a caller
+normally does not need this module directly.
+
+Failures are values rather than prose.  `error(c) : maybe<uv-error>` is
+`Nothing` on success — where the earlier `error-message` returned `""`, which
+is also what a failure carrying an empty message produced — and `uv-error`
+keeps the numeric `status` next to its `message`.  `throw-uv` and `check-uv`
+raise with that status in the exception's *info*, as `ExnUv(status)`, so a
+caller can tell an `ECANCELED` from an `ECONNRESET` by matching on it instead
+of searching a string that was assembled for a human.  `bound-port` returns
+`either<uv-error,int>` for the same reason: one `-1` used to stand for "no such
+stream", "getsockname failed" and "not an IPv4 socket" alike.
+
+`cancel-timer` stops a timer that has not fired.  `await-within` calls it on
+whichever way its race ends, because the deadline normally *loses*: without it
+every timed socket read left a live `uv_timer_t` for the whole timeout — at
+`http/server`'s 30 s idle timeout, one per request — which then fired a
+completion no task was parked on.  `live-timers` exists so that property can be
+asserted in a test rather than assumed.
 
 ## Structure and cancellation
 
@@ -114,7 +131,8 @@ leave siblings running.
 | `await-within` | as `await`, plus one extra timer |
 | `spawn` | O(ready) — the ready queue is a list appended to at the tail |
 | `unpark` on a completion | O(waiting) — the wait list is scanned twice |
-| `send` / `receive` | O(buffered) — the channel buffer is a list appended to at the tail |
+| `send` / `receive` | amortised O(1) — the channel buffer is a two-list queue |
+| `count` / `is-full` | O(1) — the buffer's size is kept, not counted |
 | group teardown | O(ready + waiting) per round, bounded at 10 000 rounds |
 
 Measured on this machine (AMD Ryzen 9 5950X, 32 threads, 126 GiB, Linux 7.0.1
@@ -122,26 +140,29 @@ x86_64, Koka 3.2.7, `--release`, fastest of 3):
 
 | what | n | ms | units/s |
 | --- | ---: | ---: | ---: |
-| `yield` | 200 000 | 164 | 1 219 512 |
-| `yield` | 800 000 | 529 | 1 512 287 |
-| `sleep(0)` (arm timer + park) | 20 000 | 29 | 689 655 |
-| `sleep(0)` (arm timer + park) | 80 000 | 104 | 769 230 |
-| `spawn` a task that returns | 50 000 | 37 | 1 351 351 |
-| `spawn` a task that returns | 200 000 | 145 | 1 379 310 |
+| `yield` | 200 000 | 117 | 1 709 401 |
+| `yield` | 800 000 | 465 | 1 720 430 |
+| `sleep(0)` (arm timer + park) | 20 000 | 22 | 909 090 |
+| `sleep(0)` (arm timer + park) | 80 000 | 90 | 888 888 |
+| `spawn` a task that returns | 50 000 | 33 | 1 515 151 |
+| `spawn` a task that returns | 200 000 | 132 | 1 515 151 |
 | channel send + receive, capacity 16 | 20 000 | 6 | 3 333 333 |
-| channel send + receive, capacity 32k | 20 000 | 1 861 | 10 746 |
+| channel send + receive, capacity 32k | 20 000 | 2 | 10 000 000 |
 
-A yield costs about 660 ns, a `sleep(0)` about 1.3 µs — the difference is the
-round trip through libuv — and a spawn about 730 ns.  All three are flat in
+A yield costs about 590 ns, a `sleep(0)` about 1.1 µs — the difference is the
+round trip through libuv — and a spawn about 670 ns.  All three are flat in
 `n`, so nothing there is quadratic at these sizes.
 
-The last pair is the one to read carefully.  The two channel rows differ only
-in capacity, and the wide one is **310 times slower**.  `send` appends to the
-buffer with `items ++ [x]`, which is O(length): with a capacity of 16 the
-buffer never holds more than 16 items, and with a capacity of 32 768 it holds
-everything that has been sent, so the same 20 000 hand-offs go from O(n) to
-O(n²).  A bounded channel with a small bound is the intended use, and it is
-also the fast one.
+The last pair is the one to read carefully, and it used to be the bad news.
+The two channel rows differ only in capacity: at 16 the buffer never holds more
+than 16 items, and at 32 768 it holds everything that has been sent.  When
+`send` appended with `items ++ [x]` — O(length) — and `is-full` measured the
+buffer with `length`, the wide row cost **1 861 ms against the narrow row's
+6 ms, 310 times slower**, because the same 20 000 hand-offs were O(n²).  The
+buffer is now a two-list queue with its size kept alongside, so both are
+amortised O(1) and the wide row is 2 ms: the *narrow* row is now the slower of
+the two, and for the right reason — a channel at its capacity parks the
+producer, and each park is a round trip through the event loop.
 
 Reproduce with `./run-benchmarks.sh runtime` from the repository root.
 
@@ -200,9 +221,11 @@ fun main()
 * **Draining gives up after 10 000 rounds.**  A task parked at that point never
   runs its cleanups.  The alternative to giving up is hanging forever.  It is a
   known limitation, not a guarantee.
-* **`send` and the ready queue are tail-appended lists**, so both are O(length)
-  per push.  See the channel numbers above.  A channel whose capacity is large
-  and which actually fills is quadratic.
+* **The ready queue is a tail-appended list**, so a push is O(ready).  In
+  practice the queue holds a handful of entries — the scheduler runs one task
+  to its next suspension point before taking the next — which is why `spawn` is
+  flat in `n` above.  The channel buffer used to have the same shape and was
+  not flat; it is now a two-list queue.
 * **There is no `detach`.**  A sibling still running when the root returns is
   cancelled, not left to finish.
 * **Single threaded, single loop.**  There is exactly one loop, `loop-init` is

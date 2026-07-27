@@ -35,8 +35,13 @@ pub fun net/listen( host : string = "127.0.0.1", port : int = 0, backlog : int =
   loop-init()
   Listener(loop/listen(host, port, backlog))
 
+// Which port was actually bound.  Raises rather than reporting a number that
+// is not a port: the alternative was `-1`, which a caller went on to print in
+// a URL.
 pub fun port( l : listener ) : io int
-  bound-port(l.id)
+  match bound-port(l.id)
+    Right(p) -> p
+    Left(e)  -> throw-uv("cannot determine the bound port", e)
 
 pub fun listener/close( l : listener ) : io ()
   close-listener(l.id)
@@ -51,17 +56,16 @@ pub fun with-listener( action : (listener) -> io a,
 // Wait for a connection.  Cancellable.
 pub fun accept( l : listener ) : <async|io> socket
   val req = fresh-request()
-  val rc  = arm-accept(l.id, req)
-  if rc != 0 then throw("cannot accept: " ++ strerror(rc))
+  check-uv(arm-accept(l.id, req), "cannot accept")
   val c = await(req)
-  if !c.is-ok then throw("accept failed: " ++ c.error-message)
-  Socket(c.value)
+  match c.error
+    Just(e)  -> throw-uv("accept failed", e)
+    Nothing  -> Socket(c.value)
 
 // Wait for a connection with a deadline.  `Nothing` means the deadline passed.
 pub fun accept-within( l : listener, ms : int ) : <async|io> maybe<socket>
   val req = fresh-request()
-  val rc  = arm-accept(l.id, req)
-  if rc != 0 then throw("cannot accept: " ++ strerror(rc))
+  check-uv(arm-accept(l.id, req), "cannot accept")
   match await-within(req, ms)
     Nothing ->
       // the deadline won the race: the accept is still armed, so clear it or
@@ -69,8 +73,9 @@ pub fun accept-within( l : listener, ms : int ) : <async|io> maybe<socket>
       cancel-accept(l.id)
       Nothing
     Just(c) ->
-      if !c.is-ok then throw("accept failed: " ++ c.error-message)
-      Just(Socket(c.value))
+      match c.error
+        Just(e) -> throw-uv("accept failed", e)
+        Nothing -> Just(Socket(c.value))
 
 // ----------------------------------------------------------------------------
 // connecting
@@ -81,10 +86,11 @@ pub fun net/connect( host : string, port : int ) : <async|io> socket
   val req = fresh-request()
   val id  = loop/connect(host, port, req)
   val c   = await(req)
-  if !c.is-ok then
-    close-stream(id)
-    throw("cannot connect to " ++ host ++ ":" ++ port.show ++ ": " ++ c.error-message)
-  Socket(id)
+  match c.error
+    Just(e) ->
+      close-stream(id)
+      throw-uv("cannot connect to " ++ host ++ ":" ++ port.show, e)
+    Nothing -> Socket(id)
 
 pub fun with-connection( host : string, port : int,
                          action : (socket) -> <async,io|e> a ) : <async,io|e> a
@@ -98,25 +104,25 @@ pub fun with-connection( host : string, port : int,
 // stream.  Bounded by construction: there is no unbounded read.
 pub fun read( s : socket, max : int = 65536 ) : <async|io> bytes
   val req = fresh-request()
-  val rc  = arm-read(s.id, req, max)
-  if rc != 0 then throw("cannot read: " ++ strerror(rc))
+  check-uv(arm-read(s.id, req, max), "cannot read")
   val c = await(req)
-  if !c.is-ok then throw("read failed: " ++ c.error-message)
-  c.data
+  match c.error
+    Just(e) -> throw-uv("read failed", e)
+    Nothing -> c.data
 
 // Read with a deadline.  `Nothing` means the deadline passed; an empty result
 // means end of stream.
 pub fun read-within( s : socket, ms : int, max : int = 65536 ) : <async|io> maybe<bytes>
   val req = fresh-request()
-  val rc  = arm-read(s.id, req, max)
-  if rc != 0 then throw("cannot read: " ++ strerror(rc))
+  check-uv(arm-read(s.id, req, max), "cannot read")
   match await-within(req, ms)
     Nothing ->
       cancel-read(s.id)
       Nothing
     Just(c) ->
-      if !c.is-ok then throw("read failed: " ++ c.error-message)
-      Just(c.data)
+      match c.error
+        Just(e) -> throw-uv("read failed", e)
+        Nothing -> Just(c.data)
 
 // Write everything.  libuv queues the whole buffer, so a partial write is not
 // something the caller has to handle.
@@ -124,10 +130,11 @@ pub fun write( s : socket, data : bytes ) : <async|io> ()
   if data.is-empty then ()
   else
     val req = fresh-request()
-    val rc  = arm-write(s.id, req, data)
-    if rc != 0 then throw("cannot write: " ++ strerror(rc))
+    check-uv(arm-write(s.id, req, data), "cannot write")
     val c = await(req)
-    if !c.is-ok then throw("write failed: " ++ c.error-message)
+    match c.error
+      Just(e) -> throw-uv("write failed", e)
+      Nothing -> ()
 
 pub fun write-string( s : socket, text : string ) : <async|io> ()
   s.write(bytes(text))
@@ -161,8 +168,8 @@ pub fun with-socket( s : socket, action : (socket) -> <async,io|e> a ) : <async,
 pub fun resolve( host : string ) : <async|io> string
   loop-init()
   val req = fresh-request()
-  val rc  = arm-resolve(host, req)
-  if rc != 0 then throw("cannot resolve " ++ host ++ ": " ++ strerror(rc))
+  check-uv(arm-resolve(host, req), "cannot resolve " ++ host)
   val c = await(req)
-  if !c.is-ok then throw("cannot resolve " ++ host ++ ": " ++ c.error-message)
-  c.text
+  match c.error
+    Just(e) -> throw-uv("cannot resolve " ++ host, e)
+    Nothing -> c.text
