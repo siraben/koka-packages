@@ -6,7 +6,7 @@ koka = ">=3.2,<4"
 [packages.bytes]
 kind = "path"
 path = "../../bytes"
-checksum = "sha256:de12bbb1f40812d4ddc74fa88e87005d82aa25d5c1f403991bc80e6cd83b0a03"
+checksum = "sha256:d3fa73c57cf7c88c0c3182ca7249b734b8674f853034890f160f6f336ee889d5"
 dependencies = ["kktest"]
 
 [packages.kktest]

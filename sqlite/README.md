@@ -193,6 +193,15 @@ fun main()
 * **`classify` maps six result codes**; everything else is `OtherDbError`.
   Extended codes are reduced to their low byte, so `SQLITE_CONSTRAINT_UNIQUE`
   and `SQLITE_CONSTRAINT_CHECK` are both `Constraint`.
+* **`classify` cannot tell SQLite's codes from the binding's own.**  The C
+  layer answers `-SQLITE_MISUSE` when it is handed an id for a connection or
+  statement it does not know about — a bookkeeping failure of this package, not
+  of SQLite — and that arrives at `classify` looking exactly like a genuine
+  `SQLITE_MISUSE`.  Reaching it takes using a handle after it was closed.
+* **`changes` and `last-insert-id` answer 0 for a connection that is not
+  open**, which is also what they answer for "nothing changed" and "nothing
+  inserted".  Same cause: a closed handle is not distinguishable from an
+  ordinary zero result.
 * **`column`, `int-at` and `text-at` scan two parallel lists.**  Reading many
   columns out of many rows is O(rows · columns²) if every column is looked up
   by name.

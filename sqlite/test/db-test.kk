@@ -115,6 +115,17 @@ fun main()
           d.run("UPDATE items SET qty = 9", [])
           assert-equal(d.changes, 1)
       ),
+      test("changes counts every row an update touched", fn()
+        mem fn(d)
+          d.schema
+          d.run("INSERT INTO items (name, qty) VALUES ('a', 1)", [])
+          d.run("INSERT INTO items (name, qty) VALUES ('b', 2)", [])
+          d.run("INSERT INTO items (name, qty) VALUES ('c', 3)", [])
+          d.run("UPDATE items SET qty = 0", [])
+          // three, not one: `changes` must reach the right connection and
+          // report the whole count
+          assert-equal(d.changes, 3)
+      ),
       test("a row limit is enforced", fn()
         mem fn(d)
           d.schema

@@ -110,8 +110,11 @@ pub fun dberror/show( e : db-error ) : string
     OtherDbError(c) -> "sqlite error " ++ c.show
 
 fun fail( what : string, code : int ) : io a
+  // The C layer reports failure as a negative result code; the exception
+  // carries the code the way sqlite writes it.
+  val c = if code < 0 then 0 - code else code
   throw("sqlite: " ++ what ++ ": " ++ prim-last-error() ++
-        " (" ++ classify(code).dberror/show ++ ")", ExnSystem(if code < 0 then 0 - code else code))
+        " (" ++ classify(c).dberror/show ++ ")", ExnSystem(c))
 
 // ----------------------------------------------------------------------------
 // connections
@@ -149,7 +152,7 @@ pub fun last-insert-id( d : database ) : io int
   prim-last-insert-id(d.conn.int64).int
 
 pub fun changes( d : database ) : io int
-  prim-changes(d.conn.int32).int
+  prim-changes(d.conn.int64).int
 
 // ----------------------------------------------------------------------------
 // statements
@@ -219,11 +222,17 @@ fun read-values( s : statement, i : int, n : int, acc : list<value> ) : io list<
 fun read-value( s : statement, i : int ) : io value
   match prim-column-type(s.stmt.int64, i.int32).int
     1 -> SqlInt(prim-column-int(s.stmt.int64, i.int32).int)
+    // SQLITE_FLOAT.  `value` has no float case, so a REAL column comes back as
+    // sqlite's own decimal rendering of it rather than losing precision to an
+    // int -- and a caller cannot tell it apart from a genuine TEXT column.
+    // Named rather than left to the wildcard below, because it is a case this
+    // package really can meet and has decided what to do about.
+    2 -> SqlText(prim-column-text(s.stmt.int64, i.int32))
     3 -> SqlText(prim-column-text(s.stmt.int64, i.int32))
     4 -> SqlBlob(unsafe-bytes-from-raw(prim-column-blob(s.stmt.int64, i.int32)))
     5 -> SqlNull
-    // sqlite floats are not used by this program's schema; surface them as
-    // text rather than silently losing precision
+    // sqlite defines no other storage class; a new one would be a library
+    // change, and text is the only rendering that cannot lose the value.
     _ -> SqlText(prim-column-text(s.stmt.int64, i.int32))
 
 // Every remaining row.  Bounded by `max-rows` so a query that matches far more
@@ -349,7 +358,9 @@ extern prim-busy-timeout( db : int64, ms : int32 ) : io int32
   c "kk_sq_busy_timeout"
 extern prim-last-insert-id( db : int64 ) : io int64
   c "kk_sq_last_insert_id"
-extern prim-changes( db : int32 ) : io int32
+// `int64`, like every other connection id here: `kk_sq_changes` takes an
+// `int64_t`, and declaring it `int32` handed the C side a narrowed argument.
+extern prim-changes( db : int64 ) : io int32
   c "kk_sq_changes"
 extern prim-prepare( db : int64, sql : string ) : io int64
   c "kk_sq_prepare"
