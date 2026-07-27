@@ -47,6 +47,13 @@ pub fun length( b : strbuilder ) : int
 pub fun is-empty( b : strbuilder ) : bool
   b.length == 0
 
+pub fun is-notempty( b : strbuilder ) : bool
+  b.length != 0
+
+// Ensure room for at least `n` additional octets.
+pub fun reserve( b : strbuilder, n : int ) : strbuilder
+  Strbuilder(b.buf.reserve(n))
+
 // ----------------------------------------------------------------------------
 // appending
 // ----------------------------------------------------------------------------
@@ -60,11 +67,25 @@ pub fun append-char( b : strbuilder, c : char ) : strbuilder
 pub fun append-int( b : strbuilder, i : int ) : strbuilder
   b.append(i.show)
 
+// Append any value that supplies the usual `show` operation.
+pub fun append-show( b : strbuilder, x : a, ?show : a -> string ) : div strbuilder
+  b.append(show(x))
+
 pub fun append-bytes( b : strbuilder, x : bytes ) : strbuilder
   Strbuilder(b.buf.snoc(x))
 
 pub fun append-line( b : strbuilder, s : string = "" ) : strbuilder
   b.append(s).append("\n")
+
+// Append `s` `n` times. Non-positive counts append nothing.
+pub fun append-repeat( b : strbuilder, s : string, n : int ) : div strbuilder
+  append-repeat-go(b, s, max(0, n))
+
+fun append-repeat-go( b : strbuilder, s : string, n : int ) : div strbuilder
+  if n <= 0 then b else append-repeat-go(b.append(s), s, n - 1)
+
+pub fun append-if( b : strbuilder, condition : bool, s : string ) : strbuilder
+  if condition then b.append(s) else b
 
 // Append each of `parts` with `sep` between them.
 pub fun append-join( b : strbuilder, parts : list<string>, sep : string = "" ) : div strbuilder
@@ -72,6 +93,10 @@ pub fun append-join( b : strbuilder, parts : list<string>, sep : string = "" ) :
     Nil            -> b
     Cons(p, Nil)   -> b.append(p)
     Cons(p, rest)  -> b.append(p).append(sep).append-join(rest, sep)
+
+// Append every part followed by a newline.
+pub fun append-lines( b : strbuilder, parts : list<string> ) : div strbuilder
+  parts.foldl(b, fn(acc, part) acc.append-line(part))
 
 // ----------------------------------------------------------------------------
 // escaping
@@ -133,6 +158,11 @@ pub fun finish( b : strbuilder ) : strbuilder-result
 
 pub alias strbuilder-result = string
 
+// Decode strictly. This differs from `finish` only when arbitrary invalid
+// octets entered through `append-bytes`.
+pub fun finish-checked( b : strbuilder ) : maybe<string>
+  b.buf.finish.to-string
+
 // The accumulated octets, without decoding.  Use this when the next step is
 // a socket write: it avoids a decode and a re-encode.
 pub fun finish-bytes( b : strbuilder ) : bytes
@@ -141,3 +171,8 @@ pub fun finish-bytes( b : strbuilder ) : bytes
 // Build a string with `action`, which is the common shape.
 pub fun build( action : (strbuilder) -> e strbuilder, capacity : int = 256 ) : e string
   action(strbuilder(capacity)).finish
+
+// Build bytes directly, avoiding a decode when the consumer is byte-oriented.
+pub fun build-bytes( action : (strbuilder) -> e strbuilder,
+                     capacity : int = 256 ) : e bytes
+  action(strbuilder(capacity)).finish-bytes

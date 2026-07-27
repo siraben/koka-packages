@@ -18,18 +18,25 @@ built on, and nothing more.
 | `strbuilder` | `(capacity : int = 256) : strbuilder` | A builder with room for `capacity` octets before its first growth |
 | `strbuilder` | `value struct { buf : builder }` | The type; a `bytes/builder` underneath |
 | `length` | `(b : strbuilder) : int` | Octets accumulated so far, not characters |
-| `is-empty` | `(b : strbuilder) : bool` | |
+| `is-empty` / `is-notempty` | `(b : strbuilder) : bool` | |
+| `reserve` | `(b : strbuilder, n : int) : strbuilder` | Ensure capacity for `n` more octets |
 | `append` | `(b : strbuilder, s : string) : strbuilder` | |
 | `append-char` | `(b : strbuilder, c : char) : strbuilder` | |
 | `append-int` | `(b : strbuilder, i : int) : strbuilder` | |
+| `append-show` | `(b : strbuilder, x : a, ?show) : div strbuilder` | Append any showable value |
 | `append-bytes` | `(b : strbuilder, x : bytes) : strbuilder` | Octets straight through, no decode |
 | `append-line` | `(b : strbuilder, s : string = "") : strbuilder` | `s` then `"\n"` |
+| `append-lines` | `(b : strbuilder, parts : list<string>) : div strbuilder` | Every part followed by `"\n"` |
 | `append-join` | `(b : strbuilder, parts : list<string>, sep : string = "") : div strbuilder` | Each part with `sep` between |
+| `append-repeat` | `(b : strbuilder, s : string, n : int) : div strbuilder` | Repeat `s`; non-positive counts do nothing |
+| `append-if` | `(b : strbuilder, condition : bool, s : string) : strbuilder` | Conditional append |
 | `append-json-escaped` | `(b : strbuilder, s : string) : div strbuilder` | RFC 8259 escaping, without the surrounding quotes |
 | `append-json-string` | `(b : strbuilder, s : string) : div strbuilder` | The same, with the quotes |
 | `finish` | `(b : strbuilder) : strbuilder-result` | The accumulated text.  The builder is left empty and can be reused |
+| `finish-checked` | `(b : strbuilder) : maybe<string>` | Strict UTF-8 decode; rejects invalid `append-bytes` input |
 | `finish-bytes` | `(b : strbuilder) : bytes` | The accumulated octets, without decoding |
 | `build` | `(action : (strbuilder) -> e strbuilder, capacity : int = 256) : e string` | Build a string with `action`; the common shape |
+| `build-bytes` | `(action : (strbuilder) -> e strbuilder, capacity : int = 256) : e bytes` | Build without decoding |
 | `strbuilder-result` | `alias = string` | What `finish` returns |
 
 JSON escaping follows RFC 8259: the two mandatory escapes (`"` and `\`), the
@@ -42,9 +49,9 @@ JSON and much smaller.
 
 | operation | cost |
 | --- | --- |
-| `append`, `append-bytes`, `append-char`, `append-int` | amortized O(1) in the appended length, so building an n-octet string is **O(n)** |
+| `append`, `append-bytes`, `append-char`, `append-int`, `append-show` | amortized O(1) in the appended length, so building an n-octet string is **O(n)** |
 | `length`, `is-empty` | O(1) |
-| `append-join` over `k` parts of total length `n` | O(n + k) |
+| `append-join`, `append-lines`, `append-repeat` over total output `n` | O(n) |
 | `append-json-escaped` over an m-character string | O(m), one pass |
 | `finish`, `finish-bytes` | O(n) — one copy out of the buffer |
 | `s := s ++ x` in a loop, the thing this replaces | **O(n²)** |
@@ -129,9 +136,9 @@ fun main()
   text-format concern in a package that deliberately has none.  `logging`'s
   README quotes a cost per log record that was measured before this change.
 * **`finish` can produce U+FFFD.**  Everything `append`, `append-char`,
-  `append-int`, `append-line`, `append-join` and the escapers put in the buffer
-  is a `:string` or an escape sequence this module produced, so it is valid
-  UTF-8.  `append-bytes` is the exception: it takes arbitrary octets and does
-  not check them, and `finish` decodes lossily, so octets that are not valid
-  UTF-8 come back as U+FFFD rather than as an error.  Use `finish-bytes` when
-  they must survive.
+  `append-int`, `append-show`, `append-line`, `append-lines`, `append-join` and
+  the escapers put in the buffer is a `:string` or an escape sequence this
+  module produced, so it is valid UTF-8.  `append-bytes` is the exception: it
+  takes arbitrary octets and does not check them, and `finish` decodes
+  lossily.  Use `finish-checked` to reject invalid text, or `finish-bytes` when
+  every octet must survive.

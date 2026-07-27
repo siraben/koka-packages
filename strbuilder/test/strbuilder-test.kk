@@ -50,22 +50,35 @@ fun main()
       test("empty", fn()
         assert-equal(strbuilder().finish, "")
         assert-true(strbuilder().is-empty)
+        assert-false(strbuilder().is-notempty)
       ),
       test("strings, chars and ints", fn()
         val s = strbuilder().append("a").append-char('b').append-int(42).finish
         assert-equal(s, "ab42")
       ),
+      test("generic show", fn()
+        assert-equal(strbuilder().append-show(42).append(",").append-show(True).finish,
+                     "42,True")
+      ),
       test("lines", fn()
         assert-equal(strbuilder().append-line("a").append-line("b").finish, "a\nb\n")
+        assert-equal(strbuilder().append-lines(["a","b"]).finish, "a\nb\n")
       ),
       test("join", fn()
         assert-equal(strbuilder().append-join(["a","b","c"], ",").finish, "a,b,c")
         assert-equal(strbuilder().append-join([], ",").finish, "")
         assert-equal(strbuilder().append-join(["a"], ",").finish, "a")
       ),
+      test("repeat and conditional append", fn()
+        assert-equal(strbuilder().append-repeat("ab", 3).finish, "ababab")
+        assert-equal(strbuilder().append-repeat("x", -2).finish, "")
+        assert-equal(strbuilder().append-if(True, "yes").append-if(False, "no").finish,
+                     "yes")
+      ),
       test("length counts octets", fn()
         assert-equal(strbuilder().append("abc").length, 3)
         assert-equal(strbuilder().append("é").length, 2)
+        assert-true(strbuilder().append("x").is-notempty)
       ),
       test("finish leaves the builder reusable", fn()
         val b = strbuilder().append("x")
@@ -77,11 +90,19 @@ fun main()
         val b = strbuilder().append("a").append-bytes(bytes("bc"))
         assert-equal(b.finish, "abc")
       ),
+      test("reserve preserves contents", fn()
+        assert-equal(strbuilder(1).append("a").reserve(4096).append("b").finish, "ab")
+      ),
+      test("checked finish rejects invalid appended bytes", fn()
+        assert-true(strbuilder().append("ok").finish-checked == Just("ok"))
+        assert-true(strbuilder().append-bytes(bytes([0x80])).finish-checked.is-nothing)
+      ),
       test("finish-bytes avoids the decode", fn()
         assert-true(strbuilder().append("hé").finish-bytes == bytes("hé"))
       ),
       test("build helper", fn()
         assert-equal(build(fn(b) b.append("a").append("b")), "ab")
+        assert-true(build-bytes(fn(b) b.append("a").append("b")) == bytes("ab"))
       ),
     ]),
 

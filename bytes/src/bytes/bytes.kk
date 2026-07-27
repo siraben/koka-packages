@@ -164,6 +164,19 @@ pub fun drop( b : bytes, n : int ) : bytes
 pub fun starts-with( b : bytes, pre : bytes ) : bool
   pre.length <= b.length && b.take(pre.length) == pre
 
+pub fun ends-with( b : bytes, suffix : bytes ) : bool
+  suffix.length <= b.length && b.drop(b.length - suffix.length) == suffix
+
+pub fun contains( b : bytes, sub : bytes ) : bool
+  b.index-of(sub).is-just
+
+// Remove a prefix or suffix when present.
+pub fun strip-prefix( b : bytes, pre : bytes ) : maybe<bytes>
+  if b.starts-with(pre) then Just(b.drop(pre.length)) else Nothing
+
+pub fun strip-suffix( b : bytes, suffix : bytes ) : maybe<bytes>
+  if b.ends-with(suffix) then Just(b.take(b.length - suffix.length)) else Nothing
+
 // Index of the first occurrence of `sub`, or `Nothing`.
 pub fun index-of( b : bytes, sub : bytes, from : int = 0 ) : maybe<int>
   val i = prim-index-of(b.rep, sub.rep, max(0, from).ssize_t).int
@@ -179,6 +192,19 @@ fun split-from( b : bytes, sep : bytes, from : int, acc : list<bytes> ) : div li
   match b.index-of(sep, from)
     Nothing -> (Cons(b.slice(from), acc)).reverse
     Just(i) -> split-from(b, sep, i + 1, Cons(b.slice(from, i - from), acc))
+
+// Split on a non-empty byte sequence. An empty separator leaves the input
+// whole, avoiding the surprising non-terminating interpretation.
+pub fun split-on( b : bytes, sep : bytes ) : div list<bytes>
+  if sep.is-empty then [b] else split-on-from(b, sep, 0, [])
+
+fun split-on-from( b : bytes, sep : bytes, from : int,
+                   acc : list<bytes> ) : div list<bytes>
+  match b.index-of(sep, from)
+    Nothing -> Cons(b.slice(from), acc).reverse
+    Just(i) ->
+      split-on-from(b, sep, i + sep.length,
+                    Cons(b.slice(from, i - from), acc))
 
 // ----------------------------------------------------------------------------
 // conversion to text
@@ -196,6 +222,29 @@ pub fun to-string-lossy( b : bytes ) : string
 // Lowercase hexadecimal, two characters per octet.  Handy in tests and logs.
 pub fun to-hex( b : bytes ) : string
   prim-to-hex(b.rep)
+
+// Decode an even-length hexadecimal string. Both letter cases are accepted;
+// whitespace and prefixes such as "0x" are rejected.
+pub fun from-hex( s : string ) : maybe<bytes>
+  match decode-hex(s.list, builder-empty(s.count / 2))
+    Nothing -> Nothing
+    Just(b) -> Just(b.finish)
+
+fun decode-hex( cs : list<char>, out : builder ) : maybe<builder>
+  match cs
+    Nil -> Just(out)
+    Cons(a, Cons(b, rest)) ->
+      match (hex-nibble(a), hex-nibble(b))
+        (Just(hi), Just(lo)) -> decode-hex(rest, out.snoc-byte(hi * 16 + lo))
+        _ -> Nothing
+    _ -> Nothing
+
+fun hex-nibble( c : char ) : maybe<int>
+  val n = c.int
+  if n >= 48 && n <= 57 then Just(n - 48)
+  elif n >= 65 && n <= 70 then Just(n - 55)
+  elif n >= 97 && n <= 102 then Just(n - 87)
+  else Nothing
 
 // ----------------------------------------------------------------------------
 // equality, ordering, hashing
@@ -238,6 +287,18 @@ pub fun le16( v : int ) : bytes
 pub fun le32( v : int ) : bytes
   bytes([ v % 256, (v / 256) % 256, (v / 65536) % 256, (v / 16777216) % 256 ])
 
+pub fun be64( v : int ) : bytes
+  bytes([ (v / 72057594037927936) % 256, (v / 281474976710656) % 256,
+          (v / 1099511627776) % 256, (v / 4294967296) % 256,
+          (v / 16777216) % 256, (v / 65536) % 256,
+          (v / 256) % 256, v % 256 ])
+
+pub fun le64( v : int ) : bytes
+  bytes([ v % 256, (v / 256) % 256,
+          (v / 65536) % 256, (v / 16777216) % 256,
+          (v / 4294967296) % 256, (v / 1099511627776) % 256,
+          (v / 281474976710656) % 256, (v / 72057594037927936) % 256 ])
+
 pub fun read-be16( b : bytes, pos : int = 0 ) : maybe<int>
   match (b.at(pos), b.at(pos + 1))
     (Just(h), Just(l)) -> Just(h * 256 + l)
@@ -256,6 +317,16 @@ pub fun read-le16( b : bytes, pos : int = 0 ) : maybe<int>
 pub fun read-le32( b : bytes, pos : int = 0 ) : maybe<int>
   match (b.read-le16(pos), b.read-le16(pos + 2))
     (Just(l), Just(h)) -> Just(h * 65536 + l)
+    _ -> Nothing
+
+pub fun read-be64( b : bytes, pos : int = 0 ) : maybe<int>
+  match (b.read-be32(pos), b.read-be32(pos + 4))
+    (Just(h), Just(l)) -> Just(h * 4294967296 + l)
+    _ -> Nothing
+
+pub fun read-le64( b : bytes, pos : int = 0 ) : maybe<int>
+  match (b.read-le32(pos), b.read-le32(pos + 4))
+    (Just(l), Just(h)) -> Just(h * 4294967296 + l)
     _ -> Nothing
 
 // ----------------------------------------------------------------------------

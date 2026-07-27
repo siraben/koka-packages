@@ -108,6 +108,18 @@ fun main()
         assert-equal(mi(m.update(1, fn(v) v + 1).lookup(1)), "Just(11)")
         assert-equal(m.update(2, fn(v) v + 1).size, 1)
       ),
+      test("alter can insert, replace, and remove", fn()
+        val inserted = map/empty().alter(1, fn(_old) Just(10))
+        val replaced = inserted.alter(1, fn(old) {
+          match old
+            Just(v) -> Just(v + 5)
+            Nothing -> Nothing
+        })
+        val removed = replaced.alter(1, fn(_old) Nothing)
+        assert-equal(mi(inserted.lookup(1)), "Just(10)")
+        assert-equal(mi(replaced.lookup(1)), "Just(15)")
+        assert-true(removed.is-empty)
+      ),
       test("get with a default", fn()
         val m = map/empty().insert(1, 10)
         assert-equal(m.get(1, -1), 10)
@@ -129,6 +141,16 @@ fun main()
       test("removing from empty is a no-op", fn()
         val m : hmap<int,int> = map/empty()
         assert-equal(m.remove(1).size, 0)
+      ),
+      test("pop returns the value and remaining map", fn()
+        val m = map/hmap([(1,10), (2,20)])
+        match m.pop(1)
+          Nothing -> assert-true(False, "present key did not pop")
+          Just((v, rest)) ->
+            assert-equal(v, 10)
+            assert-equal(rest.size, 1)
+            assert-equal(mi(rest.lookup(1)), "Nothing")
+        assert-true(m.pop(99).is-nothing)
       ),
       test("remove every key in a large map", fn()
         val ks = list(1, 300)
@@ -205,15 +227,67 @@ fun main()
         assert-equal(mi(m.lookup(1)), "Just(11)")
         assert-equal(mi(m.lookup(2)), "Just(21)")
       ),
+      test("map-with-key can use both fields", fn()
+        val m = map/hmap([(1,10), (2,20)]).map-with-key(fn(k, v) k + v)
+        assert-equal(mi(m.lookup(1)), "Just(11)")
+        assert-equal(mi(m.lookup(2)), "Just(22)")
+      ),
       test("filter", fn()
         val m = map/hmap([(1,10), (2,20), (3,30)]).filter(fn(_k, v) v > 15)
         assert-equal(m.size, 2)
         assert-equal(mi(m.lookup(1)), "Nothing")
       ),
+      test("filter-map transforms and drops in one pass", fn()
+        val m = map/hmap([(1,10), (2,20), (3,30)]).filter-map(fn(k, v) {
+          if k % 2 == 0 then Just(v / 10) else Nothing
+        })
+        assert-equal(m.size, 1)
+        assert-equal(mi(m.lookup(2)), "Just(2)")
+      ),
       test("foreach visits every entry", fn()
         var total := 0
         map/hmap([(1,10), (2,20)]).foreach(fn(_k, v) total := total + v)
         assert-equal(total, 30)
+      ),
+      test("fold visits in iteration order without allocating a list", fn()
+        val rendered = map/hmap([(3,30), (1,10), (2,20)])
+                          .fold("", fn(acc, k, _v) acc ++ k.show)
+        assert-equal(rendered, "123")
+      ),
+    ]),
+
+    group("combining", [
+      test("union is left biased", fn()
+        val a = map/hmap([(1,10), (2,20)])
+        val b = map/hmap([(2,200), (3,300)])
+        val u = a.union(b)
+        assert-equal(u.size, 3)
+        assert-equal(mi(u.lookup(2)), "Just(20)")
+      ),
+      test("union-with combines overlaps", fn()
+        val u = map/hmap([(1,10), (2,20)])
+                   .union-with(map/hmap([(2,3), (3,4)]),
+                               fn(a : int, b : int) a + b)
+        assert-equal(mi(u.lookup(1)), "Just(10)")
+        assert-equal(mi(u.lookup(2)), "Just(23)")
+        assert-equal(mi(u.lookup(3)), "Just(4)")
+      ),
+      test("intersection and difference", fn()
+        val a = map/hmap([(1,10), (2,20), (3,30)])
+        val b = map/hmap([(2,200), (3,300), (4,400)])
+        val i = a.intersect(b)
+        val d = a.difference(b)
+        assert-equal(i.keys.show, [2,3].show)
+        assert-equal(mi(i.lookup(2)), "Just(20)")
+        assert-equal(d.keys.show, [1].show)
+      ),
+      test("intersection-with supports different value types", fn()
+        val a = map/hmap([(1,10), (2,20)])
+        val b = map/hmap([(2,"x"), (3,"y")])
+        val i = a.intersection-with(b, fn(n : int, s : string) n.show ++ s)
+        match i.lookup(2)
+          Just(v) -> assert-equal(v, "20x")
+          Nothing -> assert-true(False, "overlap was lost")
       ),
     ]),
 

@@ -139,6 +139,22 @@ fun main()
         assert-true(bytes("hello").starts-with(bytes-empty))
         assert-false(bytes("he").starts-with(bytes("hello")))
       ),
+      test("suffix, contains, and stripping", fn()
+        val b = bytes("hello.txt")
+        assert-true(b.ends-with(bytes(".txt")))
+        assert-true(b.ends-with(bytes-empty))
+        assert-false(b.ends-with(bytes(".json")))
+        assert-true(b.contains(bytes("lo.t")))
+        assert-false(b.contains(bytes("world")))
+        match b.strip-prefix(bytes("hello"))
+          Just(rest) -> assert-equal(rest.to-string-lossy, ".txt")
+          Nothing -> assert-true(False, "expected prefix")
+        match b.strip-suffix(bytes(".txt"))
+          Just(rest) -> assert-equal(rest.to-string-lossy, "hello")
+          Nothing -> assert-true(False, "expected suffix")
+        assert-true(b.strip-prefix(bytes("no")).is-nothing)
+        assert-true(b.strip-suffix(bytes("no")).is-nothing)
+      ),
       test("split", fn()
         val parts = bytes("a,b,,c").split(44)   // ','
         assert-equal(parts.length, 4)
@@ -147,6 +163,14 @@ fun main()
       test("split with no separator yields one part", fn()
         assert-equal(bytes("abc").split(44).length, 1)
         assert-equal(bytes-empty.split(44).length, 1)
+      ),
+      test("split-on handles multi-octet separators", fn()
+        val parts = bytes("a--b----c").split-on(bytes("--"))
+        assert-equal(parts.map(to-string-lossy).show, ["a","b","","c"].show)
+        assert-equal(bytes("abc").split-on(bytes("")).map(to-string-lossy).show,
+                     ["abc"].show)
+        assert-equal(bytes("abc").split-on(bytes("xyz")).map(to-string-lossy).show,
+                     ["abc"].show)
       ),
     ]),
 
@@ -174,6 +198,16 @@ fun main()
       test("hex", fn()
         assert-equal(bs([0, 15, 255]).to-hex, "000fff")
         assert-equal(bytes-empty.to-hex, "")
+      ),
+      test("hex decoding", fn()
+        match from-hex("000fFf")
+          Just(b) -> assert-equal(b.octets, [0,15,255].show)
+          Nothing -> assert-true(False, "valid hex was rejected")
+        assert-true(from-hex("").is-just)
+        assert-true(from-hex("0").is-nothing)
+        assert-true(from-hex("gg").is-nothing)
+        assert-true(from-hex("0x10").is-nothing)
+        assert-true(from-hex("aa bb").is-nothing)
       ),
     ]),
 
@@ -212,6 +246,14 @@ fun main()
       test("little endian round trip", fn()
         assert-equal(mi(le16(0x1234).read-le16), "Just(4660)")
         assert-equal(mi(le32(0x12345678).read-le32), "Just(305419896)")
+      ),
+      test("64-bit integer round trip", fn()
+        val n = 0x0123456789abcdef
+        assert-equal(mi(be64(n).read-be64), mi(Just(n)))
+        assert-equal(mi(le64(n).read-le64), mi(Just(n)))
+        assert-equal(be64(n).to-hex, "0123456789abcdef")
+        assert-equal(le64(n).to-hex, "efcdab8967452301")
+        assert-equal(mi(bs([1,2,3,4,5,6,7]).read-be64), "Nothing")
       ),
       test("endianness really differs", fn()
         assert-equal(be16(0x0102).octets, [1,2].show)
@@ -271,6 +313,9 @@ fun main()
       ),
       test("a builder equals the concatenation it was fed", fn()
         check(gen-list(gen-string()), builder-matches-concat)
+      ),
+      test("hex encoding and decoding round trip", fn()
+        check(gen-string(), fn(s) from-hex(bytes(s).to-hex) == Just(bytes(s)))
       ),
     ]),
   ])

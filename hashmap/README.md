@@ -28,13 +28,21 @@ share across a request without copying, and this is that.
 | `insert` | `(m, key : k, value : v, ?hash, ?(==)) : div hmap<k,v>` | Replaces any existing entry |
 | `insert-with` | `(m, key, value, combine : (v, v) -> v, ?hash, ?(==)) : div hmap<k,v>` | `combine(old, new)` when the key is present |
 | `update` | `(m, key, f : (v) -> v, ?hash, ?(==)) : div hmap<k,v>` | Applies `f` only if the key is there |
+| `alter` | `(m, key, f : maybe<v> -> maybe<v>, ?hash, ?(==)) : div hmap<k,v>` | Insert, replace, or remove in one API |
 | `remove` | `(m, key, ?hash, ?(==)) : div hmap<k,v>` | |
+| `pop` | `(m, key, ?hash, ?(==)) : div maybe<(v,hmap<k,v>)>` | Removed value and remaining map |
 | `list` | `(m) : div list<(k,v)>` | All entries in iteration order |
 | `keys` / `values` | `(m) : div list<k>` / `div list<v>` | |
 | `hmap` | `(xs : list<(k,v)>, ?hash, ?(==)) : div hmap<k,v>` | From an association list; later entries win |
 | `foreach` | `(m, action : (k, v) -> <div\|e> ()) : <div\|e> ()` | |
+| `fold` | `(m, init, f : (a,k,v) -> <div\|e> a) : <div\|e> a` | Iteration-order fold without an intermediate list |
 | `map` | `(m, f : (v) -> v2) : div hmap<k,v2>` | Values only; the tree shape is preserved |
+| `map-with-key` | `(m, f : (k,v) -> v2) : div hmap<k,v2>` | Value transform with its key |
 | `filter` | `(m, pred : (k, v) -> bool, ?hash, ?(==)) : div hmap<k,v>` | Rebuilds |
+| `filter-map` | `(m, f : (k,v) -> maybe<v2>, ?hash, ?(==)) : div hmap<k,v2>` | Transform and filter together |
+| `union` / `union-with` | `(a, b, combine?, ?hash, ?(==)) : div hmap<k,v>` | `union` is left-biased |
+| `intersect` / `intersection-with` | `(a, b, combine?, ?hash, ?(==)) : div hmap` | Keep common keys; optionally combine values of different types |
+| `difference` | `(a, b, ?hash, ?(==)) : div hmap<k,v>` | Remove keys present in `b` |
 | `(==)` | `(m1, m2, ?hash, ?key/(==), ?val/(==)) : div bool` | Same entries, regardless of tree shape or bucket order |
 | `show` | `(m, ?kshow, ?vshow) : div string` | |
 | `is-balanced` / `is-ordered` | `(m) : div bool` | The tree invariants, exposed so tests can check them after every operation rather than only checking observable behaviour |
@@ -49,13 +57,16 @@ name.
 | --- | --- | --- |
 | `hset<k>` | `value struct { entries : hmap<k,()> }` | |
 | `empty` | `() : hset<k>` | |
-| `is-empty` / `size` | `(s : hset<k>) : bool` / `int` | |
+| `is-empty` / `is-notempty` / `size` | `(s : hset<k>) : bool` / `int` | |
+| `singleton` | `(key : k, ?hash, ?(==)) : div hset<k>` | |
 | `insert` / `remove` | `(s, key : k, ?hash, ?(==)) : div hset<k>` | |
-| `member` | `(s, key : k, ?hash, ?(==)) : div bool` | |
+| `member` / `contains` | `(s, key : k, ?hash, ?(==)) : div bool` | |
 | `list` | `(s) : div list<k>` | |
 | `hset` | `(xs : list<k>, ?hash, ?(==)) : div hset<k>` | |
-| `union` / `intersect` / `difference` | `(a, b, ?hash, ?(==)) : div hset<k>` | |
-| `subset` | `(a, b, ?hash, ?(==)) : div bool` | |
+| `union` / `intersect` / `difference` / `symmetric-difference` | `(a, b, ?hash, ?(==)) : div hset<k>` | |
+| `subset` / `proper-subset` / `superset` / `disjoint` | `(a, b, ?hash, ?(==)) : div bool` | |
+| `foreach` / `fold` | `(s, action, ...)` | Iteration-order traversal |
+| `filter` / `map` | `(s, f, ?hash, ?(==)) : div hset` | `map` rebuilds and deduplicates transformed keys |
 | `(==)` | `(a, b, ?hash, ?(==)) : div bool` | |
 | `show` | `(s, ?show) : div string` | |
 
@@ -96,8 +107,10 @@ linear scan of that bucket.
 | `insert`, `insert-with`, `remove` | O(log n) + O(bucket), rebuilding O(log n) nodes |
 | `update` | O(log n) for the lookup plus O(log n) for the insert |
 | `size`, `is-empty` | O(1) |
-| `list`, `keys`, `values`, `foreach`, `map` | O(n) |
-| `filter`, `hmap` | O(n log n) — every surviving entry is reinserted |
+| `list`, `keys`, `values`, `foreach`, `fold`, `map`, `map-with-key` | O(n) |
+| `filter`, `filter-map`, `hmap` | O(n log n) — every surviving entry is reinserted |
+| map `union`, `union-with`, `difference` | O(m log(n+m)) |
+| map `intersect`, `intersection-with` | O(n log m) |
 | `(==)` | O(n log n) |
 | `union`, `difference` (sets) | O(m log(n+m)) |
 | `intersect`, `subset` (sets) | O(m log n) |
@@ -188,9 +201,12 @@ fun main()
   termination checker cannot bound them, so `div` appears in the row of every
   caller.
 * **`filter` and `hmap` rebuild from scratch**, which is O(n log n) rather than
-  the O(n) a structural rebuild could manage.
-* **There is no `union` or `intersect` on maps**, only on sets.  Nothing in
-  this tree needed one.
+  the O(n) a structural rebuild could manage.  `filter-map` and the map/set
+  combining operations similarly favor simple persistent composition over a
+  specialized linear tree merge.
+* **Map algebra is defined by keys, not iteration order.**  `union` is
+  left-biased; `union-with` calls `combine(left, right)`.  `intersect` retains
+  the left value, while `intersection-with` makes both sides explicit.
 * **`map` changes only the values.**  Changing keys would change hashes and
   therefore the tree, so it would have to rebuild; that is `hmap(m.list.map(..))`
   and is left explicit.

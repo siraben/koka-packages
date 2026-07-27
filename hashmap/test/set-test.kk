@@ -56,13 +56,21 @@ fun main()
         val s : hset<int> = set/empty()
         assert-equal(s.size, 0)
         assert-true(s.is-empty)
+        assert-false(s.is-notempty)
         assert-false(s.member(1))
       ),
       test("insert and member", fn()
         val s = set/empty().insert(1).insert(2)
         assert-equal(s.size, 2)
+        assert-true(s.is-notempty)
         assert-true(s.member(1))
+        assert-true(s.contains(1))
         assert-false(s.member(3))
+      ),
+      test("singleton", fn()
+        val s = singleton(7)
+        assert-equal(s.size, 1)
+        assert-true(s.member(7))
       ),
       test("inserting twice does not grow the set", fn()
         assert-equal(set/empty().insert(1).insert(1).size, 1)
@@ -87,10 +95,30 @@ fun main()
       test("difference", fn()
         assert-equal(sorted(difference(hset([1,2,3]), hset([2]))), [1,3].show)
       ),
+      test("symmetric difference", fn()
+        assert-equal(sorted(symmetric-difference(hset([1,2,3]), hset([2,3,4]))),
+                     [1,4].show)
+      ),
       test("subset", fn()
         assert-true(subset(hset([1,2]), hset([1,2,3])))
         assert-false(subset(hset([1,4]), hset([1,2,3])))
         assert-true(subset(set/empty(), hset([1])))
+      ),
+      test("proper subset, superset, and disjoint", fn()
+        assert-true(proper-subset(hset([1,2]), hset([1,2,3])))
+        assert-false(proper-subset(hset([1,2]), hset([1,2])))
+        assert-true(superset(hset([1,2,3]), hset([1,2])))
+        assert-true(disjoint(hset([1,2]), hset([3,4])))
+        assert-false(disjoint(hset([1,2]), hset([2,3])))
+      ),
+      test("filter, map, fold, and foreach", fn()
+        val evens = hset([1,2,3,4]).filter(fn(x) x % 2 == 0)
+        assert-equal(sorted(evens), [2,4].show)
+        assert-equal(sorted(evens.map(fn(x) x * 10)), [20,40].show)
+        assert-equal(evens.fold(0, fn(total, x) total + x), 6)
+        var total := 0
+        evens.foreach(fn(x) total := total + x)
+        assert-equal(total, 6)
       ),
       test("equality ignores insertion order", fn()
         assert-true(set/(==)(hset([1,2,3]), hset([3,1,2])))

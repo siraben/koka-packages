@@ -211,12 +211,30 @@ pub fun update( m : hmap<k,v>, key : k, f : (v) -> v,
     Nothing -> m
     Just(v) -> m.insert(key, f(v))
 
+// General single-key update. `f` receives `Nothing` for an absent key and can
+// insert, replace, or delete by returning a `maybe`.
+pub fun alter( m : hmap<k,v>, key : k, f : (maybe<v>) -> maybe<v>,
+               ?hash : k -> int, ?(==) : (k,k) -> bool ) : div hmap<k,v>
+  val old = m.lookup(key)
+  match (old, f(old))
+    (Nothing, Nothing) -> m
+    (_, Nothing) -> m.remove(key)
+    (_, Just(v)) -> m.insert(key, v)
+
 // ----------------------------------------------------------------------------
 // removal
 // ----------------------------------------------------------------------------
 
 pub fun remove( m : hmap<k,v>, key : k, ?hash : k -> int, ?(==) : (k,k) -> bool ) : div hmap<k,v>
   remove-go(m, key.hash, key)
+
+// The removed value and the remaining map, or `Nothing` when absent.
+pub fun pop( m : hmap<k,v>, key : k,
+             ?hash : k -> int, ?(==) : (k,k) -> bool )
+           : div maybe<(v, hmap<k,v>)>
+  match m.lookup(key)
+    Nothing -> Nothing
+    Just(v) -> Just((v, m.remove(key)))
 
 fun remove-go( t : hmap<k,v>, hv : int, key : k, ?(==) : (k,k) -> bool ) : div hmap<k,v>
   match t
@@ -294,7 +312,22 @@ pub fun hmap( xs : list<(k,v)>, ?hash : k -> int, ?(==) : (k,k) -> bool ) : div 
   xs.foldl(Tip, fn(m, kv) m.insert(kv.fst, kv.snd))
 
 pub fun foreach( m : hmap<k,v>, action : (k, v) -> <div|e> () ) : <div|e> ()
-  m.list.foreach(fn(kv) action(kv.fst, kv.snd))
+  match m
+    Tip -> ()
+    Bin(_, _, _, b, l, r) ->
+      l.foreach(action)
+      b.foreach(fn(kv) action(kv.fst, kv.snd))
+      r.foreach(action)
+
+// Fold entries in iteration order (ascending hash).
+pub fun fold( m : hmap<k,v>, init : a,
+              f : (a, k, v) -> <div|e> a ) : <div|e> a
+  match m
+    Tip -> init
+    Bin(_, _, _, b, l, r) ->
+      val after-left = l.fold(init, f)
+      val after-bucket = b.foldl(after-left, fn(acc, kv) f(acc, kv.fst, kv.snd))
+      r.fold(after-bucket, f)
 
 pub fun map( m : hmap<k,v>, f : (v) -> v2 ) : div hmap<k,v2>
   match m
@@ -302,9 +335,61 @@ pub fun map( m : hmap<k,v>, f : (v) -> v2 ) : div hmap<k,v2>
     Bin(n, w, h, b, l, r) ->
       Bin(n, w, h, b.map(fn(kv) (kv.fst, f(kv.snd))), l.map(f), r.map(f))
 
+pub fun map-with-key( m : hmap<k,v>, f : (k, v) -> v2 ) : div hmap<k,v2>
+  match m
+    Tip -> Tip
+    Bin(n, w, h, b, l, r) ->
+      Bin(n, w, h, b.map(fn(kv) (kv.fst, f(kv.fst, kv.snd))),
+          l.map-with-key(f), r.map-with-key(f))
+
 pub fun filter( m : hmap<k,v>, pred : (k, v) -> bool,
                 ?hash : k -> int, ?(==) : (k,k) -> bool ) : div hmap<k,v>
-  m.list.foldl(Tip, fn(acc, kv) if pred(kv.fst, kv.snd) then acc.insert(kv.fst, kv.snd) else acc)
+  m.fold(Tip, fn(acc, k, v) if pred(k, v) then acc.insert(k, v) else acc)
+
+// Transform and filter in one pass.
+pub fun filter-map( m : hmap<k,v>, f : (k, v) -> maybe<v2>,
+                    ?hash : k -> int, ?(==) : (k,k) -> bool ) : div hmap<k,v2>
+  m.fold(Tip, fn(acc, k, v) {
+    match f(k, v)
+      Nothing -> acc
+      Just(v2) -> acc.insert(k, v2)
+  })
+
+// ----------------------------------------------------------------------------
+// combining
+// ----------------------------------------------------------------------------
+
+// Left-biased union: values from `a` win when a key occurs in both maps.
+pub fun union( a : hmap<k,v>, b : hmap<k,v>,
+               ?hash : k -> int, ?(==) : (k,k) -> bool ) : div hmap<k,v>
+  union-with(a, b, fn(left, _right) left)
+
+// Combine matching values as `combine(left, right)`.
+pub fun union-with( a : hmap<k,v>, b : hmap<k,v>, combine : (v, v) -> v,
+                    ?hash : k -> int, ?(==) : (k,k) -> bool ) : div hmap<k,v>
+  b.fold(a, fn(acc, k, right) {
+    acc.insert-with(k, right, fn(left, right2) combine(left, right2))
+  })
+
+// Left values whose keys occur in both maps.
+pub fun intersect( a : hmap<k,v>, b : hmap<k,v2>,
+                   ?hash : k -> int, ?(==) : (k,k) -> bool ) : div hmap<k,v>
+  intersection-with(a, b, fn(left, _right) left)
+
+pub fun intersection-with( a : hmap<k,v1>, b : hmap<k,v2>,
+                           combine : (v1, v2) -> v3,
+                           ?hash : k -> int, ?(==) : (k,k) -> bool )
+                         : div hmap<k,v3>
+  a.fold(Tip, fn(acc, k, left) {
+    match b.lookup(k)
+      Nothing -> acc
+      Just(right) -> acc.insert(k, combine(left, right))
+  })
+
+// Remove every key present in `b`.
+pub fun difference( a : hmap<k,v>, b : hmap<k,v2>,
+                    ?hash : k -> int, ?(==) : (k,k) -> bool ) : div hmap<k,v>
+  b.fold(a, fn(acc, k, _v) acc.remove(k))
 
 // ----------------------------------------------------------------------------
 // equality

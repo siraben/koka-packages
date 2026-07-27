@@ -40,8 +40,11 @@ a megabyte buffer does not keep the megabyte alive.
 | `slice` | `(b : bytes, start : int, count : int = -1) : bytes` | A copy of the range, clamped; asking for the whole sequence hands back the same value |
 | `take` / `drop` | `(b : bytes, n : int) : bytes` | |
 | `starts-with` | `(b : bytes, pre : bytes) : bool` | |
+| `ends-with` / `contains` | `(b : bytes, other : bytes) : bool` | Suffix and subsequence tests |
+| `strip-prefix` / `strip-suffix` | `(b : bytes, part : bytes) : maybe<bytes>` | The remainder when the part matches |
 | `index-of` | `(b : bytes, sub : bytes, from : int = 0) : maybe<int>` | First occurrence at or after `from` |
 | `split` | `(b : bytes, sep : int) : div list<bytes>` | On one octet; always one more element than there are separators |
+| `split-on` | `(b : bytes, sep : bytes) : div list<bytes>` | On a byte sequence; an empty separator leaves `b` whole |
 
 ### Text
 
@@ -50,6 +53,7 @@ a megabyte buffer does not keep the megabyte alive.
 | `to-string` | `(b : bytes) : maybe<string>` | `Nothing` when the octets are not valid UTF-8 |
 | `to-string-lossy` | `(b : bytes) : string` | Every invalid sequence becomes U+FFFD |
 | `to-hex` | `(b : bytes) : string` | Lowercase, two characters per octet |
+| `from-hex` | `(s : string) : maybe<bytes>` | Strict even-length hex; accepts either letter case |
 
 ### Equality, ordering, hashing
 
@@ -64,8 +68,8 @@ a megabyte buffer does not keep the megabyte alive.
 
 | declaration | signature | what it is |
 | --- | --- | --- |
-| `be16` / `be32` / `le16` / `le32` | `(v : int) : bytes` | Fixed width, explicit endianness |
-| `read-be16` / `read-be32` / `read-le16` / `read-le32` | `(b : bytes, pos : int = 0) : maybe<int>` | Bounds checked; `Nothing` rather than reading past the end |
+| `be16` / `be32` / `be64` / `le16` / `le32` / `le64` | `(v : int) : bytes` | Fixed width, explicit endianness |
+| `read-be16` / `read-be32` / `read-be64` / `read-le16` / `read-le32` / `read-le64` | `(b : bytes, pos : int = 0) : maybe<int>` | Bounds checked; `Nothing` rather than reading past the end |
 
 ### The builder
 
@@ -96,7 +100,7 @@ a megabyte buffer does not keep the megabyte alive.
 | `(==)` | O(n), exits early on differing lengths |
 | `compare` | O(n), no early exit |
 | `hash`, `to-hex`, `to-string` | O(n) |
-| `index-of` | O(n·m) worst case; a naive scan that skips with `memchr`, no Boyer-Moore |
+| `index-of`, `contains`, `split-on` | O(n·m) worst case; a naive scan that skips with `memchr`, no Boyer-Moore |
 | builder `snoc*` | amortized O(1), so building a sequence of n octets is O(n) |
 | `concat`, `bytes(list)` | O(total), through the builder |
 | building by repeated `++` | **O(n²)** — use the builder |
@@ -182,6 +186,13 @@ fun main()
   common in the haystack still costs a comparison per position.  Nothing in
   this tree searches for attacker-controlled needles in attacker-controlled
   haystacks, and this would need revisiting if something did.
+* **`from-hex` is deliberately strict.**  It accepts upper- and lower-case
+  hexadecimal digits, but not a `0x` prefix, whitespace, separators, or an odd
+  number of digits.  This makes malformed wire and storage values visible
+  instead of silently normalizing them.
+* **`split-on` treats an empty separator as no split.**  It returns `[b]`;
+  callers that want every boundary must state that operation explicitly
+  instead of accidentally requesting a non-terminating scan.
 * **`hash` is FNV-1a.**  It is not collision resistant and must not be used
   where an adversary picks the keys and the cost of collisions matters.  It is
   here so `:bytes` can be a `hashmap` key.
