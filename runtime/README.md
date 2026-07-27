@@ -166,6 +166,14 @@ producer, and each park is a round trip through the event loop.
 
 Reproduce with `./run-benchmarks.sh runtime` from the repository root.
 
+### Across languages
+
+![Buffered channel send and receive in Koka, Go, and Python](../benchmarks/cross/figures/service-runtime-channel.svg)
+
+Each implementation sends and receives the same integer sequence through a
+buffered channel and prints the same checksum. See the
+[ten-run time/RSS methodology](../benchmarks/cross/README.md).
+
 ## Worked example
 
 ```koka

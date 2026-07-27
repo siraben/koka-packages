@@ -146,6 +146,14 @@ whether it matters.
 
 Reproduce with `./run-benchmarks.sh http` from the repository root.
 
+### Across languages
+
+![HTTP parsing and rendering in Koka and Go](../benchmarks/cross/figures/service-http-parse-render.svg)
+
+Each implementation parses the same request and renders the same response,
+checking the same fields and output length. See the
+[ten-run time/RSS methodology](../benchmarks/cross/README.md).
+
 ## Worked example
 
 ```koka

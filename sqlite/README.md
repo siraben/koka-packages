@@ -130,6 +130,16 @@ save; on disk the gap is far larger.  `query-one` is flat between 4 000 and
 
 Reproduce with `./run-benchmarks.sh sqlite` from the repository root.
 
+### Across languages
+
+![SQLite bound inserts in Koka and Python](../benchmarks/cross/figures/storage-sqlite-bound-insert.svg)
+
+![SQLite indexed lookups in Koka and Python](../benchmarks/cross/figures/storage-sqlite-indexed-lookup.svg)
+
+The suite performs both bound inserts through one prepared transaction and
+indexed point lookups over the same native SQLite engine. See the
+[ten-run time/RSS methodology](../benchmarks/cross/README.md).
+
 ## Worked example
 
 ```koka

@@ -1,0 +1,156 @@
+{
+  "cases": [
+    {
+      "id": "data-byte-builder",
+      "title": "Byte builder: 80k fixed-chunk appends",
+      "package": "bytes",
+      "chart_label": "byte builder",
+      "unit": "repetition (80k appends)",
+      "default_work": 100,
+      "equivalence": "Each repetition creates a fresh byte builder, appends the fixed 10-byte ASCII chunk `0123456789` exactly 80000 times, finalizes it, and folds its length plus a non-empty marker into a modulo-1000000007 checksum.",
+      "implementations": [
+        {
+          "id": "data-byte-builder-koka",
+          "language": "Koka",
+          "version_command": ["../../../../../kk", "--version"],
+          "build": ["bash", "build-koka.sh", "bytes", "byte-builder.kk", "data-byte-builder-koka"],
+          "run": ["build/data-byte-builder-koka", "{work}"]
+        },
+        {
+          "id": "data-byte-builder-cpp",
+          "language": "C++",
+          "version_command": ["g++", "--version"],
+          "build": ["bash", "build-cpp.sh", "byte_builder.cpp", "data-byte-builder-cpp"],
+          "run": ["build/data-byte-builder-cpp", "{work}"]
+        },
+        {
+          "id": "data-byte-builder-go",
+          "language": "Go",
+          "version_command": ["go", "version"],
+          "build": ["bash", "build-go.sh", "byte_builder.go", "data-byte-builder-go"],
+          "run": ["build/data-byte-builder-go", "{work}"]
+        },
+        {
+          "id": "data-byte-builder-python",
+          "language": "Python",
+          "version_command": ["python3", "--version"],
+          "run": ["python3", "byte_builder.py", "{work}"]
+        }
+      ]
+    },
+    {
+      "id": "data-byte-search",
+      "title": "Byte delimiter scan over 8 MiB",
+      "package": "bytes",
+      "chart_label": "byte delimiter scan",
+      "unit": "full-buffer scans",
+      "default_work": 500,
+      "equivalence": "Setup builds the same 8388608-byte buffer as 256 repetitions of 32767 ASCII `a` bytes followed by `|`. Each work unit starts at byte zero, repeatedly finds the next `|` with the language's byte-search primitive, advances one byte past it, and folds each one-based match position into a per-scan sum. The per-scan sums are folded into the same modulo-1000000007 checksum. Setup is performed once per process and is included in process time.",
+      "implementations": [
+        {
+          "id": "data-byte-search-koka",
+          "language": "Koka",
+          "version_command": ["../../../../../kk", "--version"],
+          "build": ["bash", "build-koka.sh", "bytes", "byte-scan.kk", "data-byte-search-koka"],
+          "run": ["build/data-byte-search-koka", "{work}"]
+        },
+        {
+          "id": "data-byte-search-cpp",
+          "language": "C++",
+          "version_command": ["g++", "--version"],
+          "build": ["bash", "build-cpp.sh", "byte_scan.cpp", "data-byte-search-cpp"],
+          "run": ["build/data-byte-search-cpp", "{work}"]
+        },
+        {
+          "id": "data-byte-search-go",
+          "language": "Go",
+          "version_command": ["go", "version"],
+          "build": ["bash", "build-go.sh", "byte_scan.go", "data-byte-search-go"],
+          "run": ["build/data-byte-search-go", "{work}"]
+        },
+        {
+          "id": "data-byte-search-python",
+          "language": "Python",
+          "version_command": ["python3", "--version"],
+          "run": ["python3", "byte_scan.py", "{work}"]
+        }
+      ]
+    },
+    {
+      "id": "data-hashmap-insert-lookup",
+      "title": "Hashmap insert then lookup",
+      "package": "hashmap",
+      "chart_label": "hashmap insert+lookup",
+      "unit": "insert+lookup key pairs",
+      "default_work": 500000,
+      "equivalence": "Create a fresh map, insert each integer key i in [0, work) once with value (17*i + 3) modulo 1000003, then look up every key once in reverse order and print the sum of found values. Koka uses a persistent hmap; C++, Go, and Python use their idiomatic mutable hash maps.",
+      "implementations": [
+        {
+          "id": "data-hashmap-insert-lookup-koka",
+          "language": "Koka",
+          "version_command": ["../../../../../kk", "--version"],
+          "build": ["bash", "build-koka.sh", "hashmap", "hashmap-loop.kk", "data-hashmap-insert-lookup-koka"],
+          "run": ["build/data-hashmap-insert-lookup-koka", "{work}"]
+        },
+        {
+          "id": "data-hashmap-insert-lookup-cpp",
+          "language": "C++",
+          "version_command": ["g++", "--version"],
+          "build": ["bash", "build-cpp.sh", "hashmap_loop.cpp", "data-hashmap-insert-lookup-cpp"],
+          "run": ["build/data-hashmap-insert-lookup-cpp", "{work}"]
+        },
+        {
+          "id": "data-hashmap-insert-lookup-go",
+          "language": "Go",
+          "version_command": ["go", "version"],
+          "build": ["bash", "build-go.sh", "hashmap_loop.go", "data-hashmap-insert-lookup-go"],
+          "run": ["build/data-hashmap-insert-lookup-go", "{work}"]
+        },
+        {
+          "id": "data-hashmap-insert-lookup-python",
+          "language": "Python",
+          "version_command": ["python3", "--version"],
+          "run": ["python3", "hashmap_loop.py", "{work}"]
+        }
+      ]
+    },
+    {
+      "id": "data-text-builder",
+      "title": "Text builder: 80k fixed-chunk appends",
+      "package": "strbuilder",
+      "chart_label": "text builder",
+      "unit": "repetition (80k appends)",
+      "default_work": 100,
+      "equivalence": "Each repetition creates a fresh text builder, appends the fixed 10-character ASCII chunk `0123456789` exactly 80000 times, finalizes it, and folds its length plus a non-empty marker into a modulo-1000000007 checksum.",
+      "implementations": [
+        {
+          "id": "data-text-builder-koka",
+          "language": "Koka",
+          "version_command": ["../../../../../kk", "--version"],
+          "build": ["bash", "build-koka.sh", "text", "text-builder.kk", "data-text-builder-koka"],
+          "run": ["build/data-text-builder-koka", "{work}"]
+        },
+        {
+          "id": "data-text-builder-cpp",
+          "language": "C++",
+          "version_command": ["g++", "--version"],
+          "build": ["bash", "build-cpp.sh", "text_builder.cpp", "data-text-builder-cpp"],
+          "run": ["build/data-text-builder-cpp", "{work}"]
+        },
+        {
+          "id": "data-text-builder-go",
+          "language": "Go",
+          "version_command": ["go", "version"],
+          "build": ["bash", "build-go.sh", "text_builder.go", "data-text-builder-go"],
+          "run": ["build/data-text-builder-go", "{work}"]
+        },
+        {
+          "id": "data-text-builder-python",
+          "language": "Python",
+          "version_command": ["python3", "--version"],
+          "run": ["python3", "text_builder.py", "{work}"]
+        }
+      ]
+    }
+  ]
+}

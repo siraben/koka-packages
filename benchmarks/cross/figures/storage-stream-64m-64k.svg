@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="398" viewBox="0 0 820 398" role="img" aria-labelledby="title desc">
+<title id="title">Stream a generated 64 MiB file in 64 KiB chunks</title>
+<desc id="desc">mean of 10 process runs, normalized to Koka = 1.00×; lower is better</desc>
+<style>
+text{font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;fill:#172033}
+.title{font-size:24px;font-weight:700}.sub{font-size:12px;fill:#58677c}
+.axis{font-size:11px;fill:#66758a}.label{font-size:12px;font-weight:650}
+.value{font-size:10px;font-weight:700}.grid{stroke:#d9e1ea;stroke-width:1}
+</style>
+<rect width="100%" height="100%" rx="12" fill="#f8fafc"/>
+<text class="title" x="28" y="38">Stream a generated 64 MiB file in 64 KiB chunks</text>
+<text class="sub" x="28" y="59">mean of 10 process runs, normalized to Koka = 1.00×; lower is better</text>
+<text class="sub" x="28" y="83">equivalent work and identical checksum · 4 passes</text>
+<text class="label" x="190" y="111">execution time</text>
+<text class="label" x="500" y="111">peak RSS</text>
+<text class="label" x="28" y="147">Koka</text>
+<rect x="190" y="132" width="115.0" height="20" rx="4" fill="#9f2f2f"/>
+<text class="value" x="312.0" y="146">1.00×</text>
+<rect x="500" y="132" width="115.0" height="20" rx="4" fill="#9f2f2f"/>
+<text class="value" x="622.0" y="146">1.00×</text>
+<text class="label" x="28" y="199">C++</text>
+<rect x="190" y="184" width="96.8" height="20" rx="4" fill="#6159a5"/>
+<text class="value" x="293.8" y="198">0.84×</text>
+<rect x="500" y="184" width="57.8" height="20" rx="4" fill="#6159a5"/>
+<text class="value" x="564.8" y="198">0.50×</text>
+<text class="label" x="28" y="251">Go</text>
+<rect x="190" y="236" width="100.4" height="20" rx="4" fill="#3f92a8"/>
+<text class="value" x="297.4" y="250">0.87×</text>
+<rect x="500" y="236" width="44.9" height="20" rx="4" fill="#3f92a8"/>
+<text class="value" x="551.9" y="250">0.39×</text>
+<text class="label" x="28" y="303">Python</text>
+<rect x="190" y="288" width="163.2" height="20" rx="4" fill="#e0a126"/>
+<text class="value" x="360.2" y="302">1.42×</text>
+<rect x="500" y="288" width="177.4" height="20" rx="4" fill="#e0a126"/>
+<text class="value" x="684.4" y="302">1.54×</text>
+<text class="sub" x="28" y="378">Raw samples and commands: benchmarks/cross/results.json · AMD Ryzen 9 5950X 16-Core Processor</text>
+</svg>

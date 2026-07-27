@@ -92,6 +92,16 @@ that price is fine; a debug line per loop iteration is not.
 
 Reproduce with `./run-benchmarks.sh logging` from the repository root.
 
+### Across languages
+
+![Filtered structured logging in Koka, Go, and Python](../benchmarks/cross/figures/service-logging-filtered-eight-fields.svg)
+
+![Enabled structured logging in Koka, Go, and Python](../benchmarks/cross/figures/service-logging-enabled-eight-fields.svg)
+
+The suite measures both minimum-level rejection and enabled structured-record
+rendering with the same eight fields. See the
+[ten-run time/RSS methodology](../benchmarks/cross/README.md).
+
 ## Worked example
 
 ```koka

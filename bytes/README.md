@@ -151,6 +151,16 @@ magnitude faster.  The complexity is unchanged; only the constant is.
 
 Reproduce with `./run-benchmarks.sh bytes` from the repository root.
 
+### Across languages
+
+![Byte builders in Koka, C++, Go, and Python](../benchmarks/cross/figures/data-byte-builder.svg)
+
+![Byte delimiter search in Koka, C++, Go, and Python](../benchmarks/cross/figures/data-byte-search.svg)
+
+The suite exercises both byte construction and delimiter search using the same
+work and checksum in every language. See the
+[ten-run time/RSS methodology](../benchmarks/cross/README.md).
+
 ## Worked example
 
 ```koka

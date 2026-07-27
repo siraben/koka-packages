@@ -120,6 +120,16 @@ cooperative loop serves nobody.
 
 Reproduce with `./run-benchmarks.sh json` from the repository root.
 
+### Across languages
+
+![Compact JSON generation in Koka, Go, and Python](../benchmarks/cross/figures/service-json-generate-2k.svg)
+
+![Compact JSON parsing in Koka, Go, and Python](../benchmarks/cross/figures/service-json-parse-2k.svg)
+
+The suite parses and generates the same compact 2,000-integer value and checks
+the same result in every language. See the
+[ten-run time/RSS methodology](../benchmarks/cross/README.md).
+
 ## Worked example
 
 ```koka

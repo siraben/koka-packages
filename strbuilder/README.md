@@ -79,6 +79,14 @@ needs no escaping at all, which is the common one.
 
 Reproduce with `./run-benchmarks.sh strbuilder` from the repository root.
 
+### Across languages
+
+![Text builders in Koka, C++, Go, and Python](../benchmarks/cross/figures/data-text-builder.svg)
+
+Every implementation builds and finalizes the same ASCII values and prints the
+same checksum. See the
+[ten-run time/RSS methodology](../benchmarks/cross/README.md).
+
 ## Worked example
 
 ```koka

@@ -1,0 +1,170 @@
+{
+  "cases": [
+    {
+      "id": "storage-sqlite-bound-insert",
+      "title": "SQLite in-memory bound insert in one prepared transaction",
+      "package": "sqlite",
+      "chart_label": "SQLite bound inserts",
+      "unit": "rows",
+      "default_work": 100000,
+      "equivalence": "Create the same in-memory table, explicitly begin one transaction, insert {work} rows through one prepared statement with bound integer i and text 'row-i', commit, then print exactly: rows=N sum_i=S text_bytes=B. N must equal work, S is sum(i), and B is sum of UTF-8 text lengths.",
+      "implementations": [
+        {
+          "id": "storage-sqlite-koka",
+          "language": "Koka",
+          "version_command": ["../../../../../kk", "--version"],
+          "build": ["bash", "build_sqlite_koka.sh"],
+          "run": ["build/sqlite_koka", "{work}"]
+        },
+        {
+          "id": "storage-sqlite-python",
+          "language": "Python",
+          "version_command": ["python3", "-c", "import sqlite3,sys; print(sys.version.split()[0], sqlite3.sqlite_version)"],
+          "run": ["python3", "sqlite_python.py", "{work}"]
+        }
+      ]
+    },
+    {
+      "id": "storage-stream-64m-64k",
+      "title": "Stream a generated 64 MiB file in 64 KiB chunks",
+      "package": "fileio",
+      "chart_label": "64 MiB file streaming",
+      "unit": "passes",
+      "default_work": 4,
+      "equivalence": "Build setup creates build/storage_fixture.bin as exactly 64 MiB of the repeated byte sequence 0..255. Each timed pass opens it and reads to EOF in requested 65536-byte chunks. A low-overhead deterministic checksum adds each chunk's length, first byte, and last byte so validation does not dominate I/O. Print exactly: bytes=67108864 reps=R checksum=C. File generation is build-time setup and excluded from run timing.",
+      "implementations": [
+        {
+          "id": "storage-stream-koka",
+          "language": "Koka",
+          "version_command": ["../../../../../kk", "--version"],
+          "build": ["bash", "build_stream_koka.sh"],
+          "run": ["build/stream_koka", "{work}", "build/storage_fixture.bin"]
+        },
+        {
+          "id": "storage-stream-go",
+          "language": "Go",
+          "version_command": ["go", "version"],
+          "build": ["bash", "build_stream_go.sh"],
+          "run": ["build/stream_go", "{work}", "build/storage_fixture.bin"]
+        },
+        {
+          "id": "storage-stream-python",
+          "language": "Python",
+          "version_command": ["python3", "--version"],
+          "build": ["python3", "generate_fixture.py", "build/storage_fixture.bin"],
+          "run": ["python3", "stream_python.py", "{work}", "build/storage_fixture.bin"]
+        },
+        {
+          "id": "storage-stream-cpp",
+          "language": "C++",
+          "version_command": ["g++", "--version"],
+          "build": ["bash", "build_stream_cpp.sh"],
+          "run": ["build/stream_cpp", "{work}", "build/storage_fixture.bin"]
+        }
+      ]
+    },
+    {
+      "id": "storage-sqlite-indexed-lookup",
+      "title": "SQLite prepared indexed point lookups",
+      "package": "sqlite",
+      "chart_label": "SQLite indexed lookups",
+      "unit": "lookups",
+      "default_work": 50000,
+      "equivalence": "Build setup creates the same 100000-row SQLite database with integer primary key i and text 'row-i'. The timed program opens it, prepares SELECT i,text_value WHERE i=? once, and performs {work} bound lookups in deterministic key order (lookup_index * 48271) % 100000. Print exactly: lookups=N sum_i=S text_bytes=B. Database creation is excluded from run timing.",
+      "implementations": [
+        {
+          "id": "storage-sqlite-lookup-koka",
+          "language": "Koka",
+          "version_command": ["../../../../../kk", "--version"],
+          "build": ["bash", "build_lookup_koka.sh"],
+          "run": ["build/lookup_koka", "{work}", "build/lookup_fixture.db"]
+        },
+        {
+          "id": "storage-sqlite-lookup-python",
+          "language": "Python",
+          "version_command": ["python3", "-c", "import sqlite3,sys; print(sys.version.split()[0], sqlite3.sqlite_version)"],
+          "build": ["python3", "generate_lookup_db.py", "build/lookup_fixture.db"],
+          "run": ["python3", "lookup_python.py", "{work}", "build/lookup_fixture.db"]
+        }
+      ]
+    },
+    {
+      "id": "storage-read-whole-file",
+      "title": "Read a whole 64 MiB file",
+      "package": "fileio",
+      "chart_label": "64 MiB whole-file read",
+      "unit": "reads",
+      "default_work": 4,
+      "equivalence": "Build setup creates build/storage_fixture.bin as exactly 64 MiB of repeated bytes 0..255. Each timed repetition opens the file and reads it completely into one in-memory byte sequence. A low-overhead deterministic checksum adds the sequence length, first byte, and last byte so validation does not dominate allocation and I/O. Print exactly: bytes=67108864 reps=R checksum=C. File generation is excluded from run timing.",
+      "implementations": [
+        {
+          "id": "storage-whole-read-koka",
+          "language": "Koka",
+          "version_command": ["../../../../../kk", "--version"],
+          "build": ["bash", "build_whole_read_koka.sh"],
+          "run": ["build/whole_read_koka", "{work}", "build/storage_fixture.bin"]
+        },
+        {
+          "id": "storage-whole-read-go",
+          "language": "Go",
+          "version_command": ["go", "version"],
+          "build": ["bash", "build_whole_read_go.sh"],
+          "run": ["build/whole_read_go", "{work}", "build/storage_fixture.bin"]
+        },
+        {
+          "id": "storage-whole-read-python",
+          "language": "Python",
+          "version_command": ["python3", "--version"],
+          "build": ["python3", "generate_fixture.py", "build/storage_fixture.bin"],
+          "run": ["python3", "whole_read_python.py", "{work}", "build/storage_fixture.bin"]
+        },
+        {
+          "id": "storage-whole-read-cpp",
+          "language": "C++",
+          "version_command": ["g++", "--version"],
+          "build": ["bash", "build_whole_read_cpp.sh"],
+          "run": ["build/whole_read_cpp", "{work}", "build/storage_fixture.bin"]
+        }
+      ]
+    },
+    {
+      "id": "storage-resource-scope",
+      "title": "Scoped file acquire, use, and release",
+      "package": "resource",
+      "chart_label": "scoped file lifetime",
+      "unit": "scopes",
+      "default_work": 20000,
+      "equivalence": "Build setup provides the same fixture. Each of {work} iterations acquires a fresh read-only file handle through the language's standard scoped lifetime idiom, reads exactly one byte, incorporates the byte count into a checksum, and releases before the next iteration. Koka uses resource/with-resource directly; C++ uses RAII, Go uses defer in a per-iteration function, and Python uses with. Print exactly: scopes=N bytes=N checksum=N.",
+      "implementations": [
+        {
+          "id": "storage-scope-koka",
+          "language": "Koka",
+          "version_command": ["../../../../../kk", "--version"],
+          "build": ["bash", "build_scope_koka.sh"],
+          "run": ["build/scope_koka", "{work}", "build/storage_fixture.bin"]
+        },
+        {
+          "id": "storage-scope-go",
+          "language": "Go",
+          "version_command": ["go", "version"],
+          "build": ["bash", "build_scope_go.sh"],
+          "run": ["build/scope_go", "{work}", "build/storage_fixture.bin"]
+        },
+        {
+          "id": "storage-scope-python",
+          "language": "Python",
+          "version_command": ["python3", "--version"],
+          "build": ["python3", "generate_fixture.py", "build/storage_fixture.bin"],
+          "run": ["python3", "scope_python.py", "{work}", "build/storage_fixture.bin"]
+        },
+        {
+          "id": "storage-scope-cpp",
+          "language": "C++",
+          "version_command": ["g++", "--version"],
+          "build": ["bash", "build_scope_cpp.sh"],
+          "run": ["build/scope_cpp", "{work}", "build/storage_fixture.bin"]
+        }
+      ]
+    }
+  ]
+}

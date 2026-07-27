@@ -91,6 +91,14 @@ of this is on any critical path.
 
 Reproduce with `./run-benchmarks.sh resource` from the repository root.
 
+### Across languages
+
+![Scoped acquire, use, and release in Koka, C++, Go, and Python](../benchmarks/cross/figures/storage-resource-scope.svg)
+
+Each implementation repeatedly opens a file, reads one byte, and releases the
+handle using its standard scoped-lifetime idiom. See the
+[ten-run time/RSS methodology](../benchmarks/cross/README.md).
+
 ## Worked example
 
 ```koka

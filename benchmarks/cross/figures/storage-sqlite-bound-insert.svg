@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="294" viewBox="0 0 820 294" role="img" aria-labelledby="title desc">
+<title id="title">SQLite in-memory bound insert in one prepared transaction</title>
+<desc id="desc">mean of 10 process runs, normalized to Koka = 1.00×; lower is better</desc>
+<style>
+text{font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;fill:#172033}
+.title{font-size:24px;font-weight:700}.sub{font-size:12px;fill:#58677c}
+.axis{font-size:11px;fill:#66758a}.label{font-size:12px;font-weight:650}
+.value{font-size:10px;font-weight:700}.grid{stroke:#d9e1ea;stroke-width:1}
+</style>
+<rect width="100%" height="100%" rx="12" fill="#f8fafc"/>
+<text class="title" x="28" y="38">SQLite in-memory bound insert in one prepared transaction</text>
+<text class="sub" x="28" y="59">mean of 10 process runs, normalized to Koka = 1.00×; lower is better</text>
+<text class="sub" x="28" y="83">equivalent work and identical checksum · 100000 rows</text>
+<text class="label" x="190" y="111">execution time</text>
+<text class="label" x="500" y="111">peak RSS</text>
+<text class="label" x="28" y="147">Koka</text>
+<rect x="190" y="132" width="115.0" height="20" rx="4" fill="#9f2f2f"/>
+<text class="value" x="312.0" y="146">1.00×</text>
+<rect x="500" y="132" width="115.0" height="20" rx="4" fill="#9f2f2f"/>
+<text class="value" x="622.0" y="146">1.00×</text>
+<text class="label" x="28" y="199">Python</text>
+<rect x="190" y="184" width="177.6" height="20" rx="4" fill="#e0a126"/>
+<text class="value" x="374.6" y="198">1.54×</text>
+<rect x="500" y="184" width="157.7" height="20" rx="4" fill="#e0a126"/>
+<text class="value" x="664.7" y="198">1.37×</text>
+<text class="sub" x="28" y="274">Raw samples and commands: benchmarks/cross/results.json · AMD Ryzen 9 5950X 16-Core Processor</text>
+</svg>

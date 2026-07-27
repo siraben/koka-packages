@@ -1,0 +1,289 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1242" viewBox="0 0 1200 1242" role="img" aria-labelledby="title desc">
+<title id="title">koka-packages across languages</title>
+<desc id="desc">mean of 10 process runs, normalized to Koka = 1.00×; lower is better</desc>
+<style>
+text{font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;fill:#172033}
+.title{font-size:24px;font-weight:700}.sub{font-size:12px;fill:#58677c}
+.axis{font-size:11px;fill:#66758a}.label{font-size:12px;font-weight:650}
+.value{font-size:10px;font-weight:700}.grid{stroke:#d9e1ea;stroke-width:1}
+</style>
+<rect width="100%" height="100%" rx="12" fill="#f8fafc"/>
+<text class="title" x="28" y="38">koka-packages across languages</text>
+<text class="sub" x="28" y="59">mean of 10 process runs, normalized to Koka = 1.00×; lower is better</text>
+<rect x="28" y="77" width="13" height="13" rx="2" fill="#9f2f2f"/>
+<text class="label" x="47" y="88">Koka</text>
+<rect x="112" y="77" width="13" height="13" rx="2" fill="#6159a5"/>
+<text class="label" x="131" y="88">C++</text>
+<rect x="196" y="77" width="13" height="13" rx="2" fill="#3f92a8"/>
+<text class="label" x="215" y="88">Go</text>
+<rect x="280" y="77" width="13" height="13" rx="2" fill="#e0a126"/>
+<text class="label" x="299" y="88">Python</text>
+<text class="label" x="250" y="104">relative execution time</text>
+<line class="grid" x1="250.0" y1="124" x2="250.0" y2="1186"/>
+<text class="axis" x="250.0" y="117" text-anchor="middle">0×</text>
+<line class="grid" x1="329.0" y1="124" x2="329.0" y2="1186"/>
+<text class="axis" x="329.0" y="117" text-anchor="middle">2.2×</text>
+<line class="grid" x1="408.0" y1="124" x2="408.0" y2="1186"/>
+<text class="axis" x="408.0" y="117" text-anchor="middle">4.4×</text>
+<line class="grid" x1="487.0" y1="124" x2="487.0" y2="1186"/>
+<text class="axis" x="487.0" y="117" text-anchor="middle">6.6×</text>
+<line class="grid" x1="566.0" y1="124" x2="566.0" y2="1186"/>
+<text class="axis" x="566.0" y="117" text-anchor="middle">8.8×</text>
+<line class="grid" x1="645.0" y1="124" x2="645.0" y2="1186"/>
+<text class="axis" x="645.0" y="117" text-anchor="middle">11×</text>
+<text class="label" x="742" y="104">relative peak RSS</text>
+<line class="grid" x1="742.0" y1="124" x2="742.0" y2="1186"/>
+<text class="axis" x="742.0" y="117" text-anchor="middle">0×</text>
+<line class="grid" x1="821.0" y1="124" x2="821.0" y2="1186"/>
+<text class="axis" x="821.0" y="117" text-anchor="middle">0.4×</text>
+<line class="grid" x1="900.0" y1="124" x2="900.0" y2="1186"/>
+<text class="axis" x="900.0" y="117" text-anchor="middle">0.8×</text>
+<line class="grid" x1="979.0" y1="124" x2="979.0" y2="1186"/>
+<text class="axis" x="979.0" y="117" text-anchor="middle">1.2×</text>
+<line class="grid" x1="1058.0" y1="124" x2="1058.0" y2="1186"/>
+<text class="axis" x="1058.0" y="117" text-anchor="middle">1.6×</text>
+<line class="grid" x1="1137.0" y1="124" x2="1137.0" y2="1186"/>
+<text class="axis" x="1137.0" y="117" text-anchor="middle">2×</text>
+<text class="label" x="28" y="155">bytes</text>
+<text class="axis" x="28" y="172">byte builder</text>
+<line class="grid" x1="28" y1="199" x2="1172" y2="199"/>
+<rect x="250" y="138.0" width="35.9" height="8.8" rx="2" fill="#9f2f2f"/>
+<text class="value" x="290.9" y="145.8">1.00×</text>
+<rect x="250" y="148.8" width="4.3" height="8.8" rx="2" fill="#6159a5"/>
+<text class="value" x="259.3" y="156.5">0.12×</text>
+<rect x="250" y="159.5" width="13.1" height="8.8" rx="2" fill="#3f92a8"/>
+<text class="value" x="268.1" y="167.2">0.36×</text>
+<rect x="250" y="170.2" width="129.9" height="8.8" rx="2" fill="#e0a126"/>
+<text class="value" x="384.9" y="178.0">3.62×</text>
+<rect x="742" y="138.0" width="197.5" height="8.8" rx="2" fill="#9f2f2f"/>
+<text class="value" x="944.5" y="145.8">1.00×</text>
+<rect x="742" y="148.8" width="106.3" height="8.8" rx="2" fill="#6159a5"/>
+<text class="value" x="853.3" y="156.5">0.54×</text>
+<rect x="742" y="159.5" width="209.7" height="8.8" rx="2" fill="#3f92a8"/>
+<text class="value" x="956.7" y="167.2">1.06×</text>
+<rect x="742" y="170.2" width="302.2" height="8.8" rx="2" fill="#e0a126"/>
+<text class="value" x="1049.2" y="178.0">1.53×</text>
+<text class="label" x="28" y="225">bytes</text>
+<text class="axis" x="28" y="242">byte delimiter scan</text>
+<line class="grid" x1="28" y1="269" x2="1172" y2="269"/>
+<rect x="250" y="208.0" width="35.9" height="8.8" rx="2" fill="#9f2f2f"/>
+<text class="value" x="290.9" y="215.8">1.00×</text>
+<rect x="250" y="218.8" width="34.8" height="8.8" rx="2" fill="#6159a5"/>
+<text class="value" x="289.8" y="226.5">0.97×</text>
+<rect x="250" y="229.5" width="41.2" height="8.8" rx="2" fill="#3f92a8"/>
+<text class="value" x="296.2" y="237.2">1.15×</text>
+<rect x="250" y="240.2" width="60.3" height="8.8" rx="2" fill="#e0a126"/>
+<text class="value" x="315.3" y="248.0">1.68×</text>
+<rect x="742" y="208.0" width="197.5" height="8.8" rx="2" fill="#9f2f2f"/>
+<text class="value" x="944.5" y="215.8">1.00×</text>
+<rect x="742" y="218.8" width="90.5" height="8.8" rx="2" fill="#6159a5"/>
+<text class="value" x="837.5" y="226.5">0.46×</text>
+<rect x="742" y="229.5" width="89.9" height="8.8" rx="2" fill="#3f92a8"/>
+<text class="value" x="836.9" y="237.2">0.46×</text>
+<rect x="742" y="240.2" width="152.1" height="8.8" rx="2" fill="#e0a126"/>
+<text class="value" x="899.1" y="248.0">0.77×</text>
+<text class="label" x="28" y="295">strbuilder</text>
+<text class="axis" x="28" y="312">text builder</text>
+<line class="grid" x1="28" y1="339" x2="1172" y2="339"/>
+<rect x="250" y="278.0" width="35.9" height="8.8" rx="2" fill="#9f2f2f"/>
+<text class="value" x="290.9" y="285.8">1.00×</text>
+<rect x="250" y="288.8" width="3.2" height="8.8" rx="2" fill="#6159a5"/>
+<text class="value" x="258.2" y="296.5">0.09×</text>
+<rect x="250" y="299.5" width="5.6" height="8.8" rx="2" fill="#3f92a8"/>
+<text class="value" x="260.6" y="307.2">0.15×</text>
+<rect x="250" y="310.2" width="76.5" height="8.8" rx="2" fill="#e0a126"/>
+<text class="value" x="331.5" y="318.0">2.13×</text>
+<rect x="742" y="278.0" width="197.5" height="8.8" rx="2" fill="#9f2f2f"/>
+<text class="value" x="944.5" y="285.8">1.00×</text>
+<rect x="742" y="288.8" width="79.0" height="8.8" rx="2" fill="#6159a5"/>
+<text class="value" x="826.0" y="296.5">0.40×</text>
+<rect x="742" y="299.5" width="153.5" height="8.8" rx="2" fill="#3f92a8"/>
+<text class="value" x="900.5" y="307.2">0.78×</text>
+<rect x="742" y="310.2" width="236.2" height="8.8" rx="2" fill="#e0a126"/>
+<text class="value" x="983.2" y="318.0">1.20×</text>
+<text class="label" x="28" y="365">hashmap</text>
+<text class="axis" x="28" y="382">hashmap insert+lookup</text>
+<line class="grid" x1="28" y1="409" x2="1172" y2="409"/>
+<rect x="250" y="348.0" width="35.9" height="8.8" rx="2" fill="#9f2f2f"/>
+<text class="value" x="290.9" y="355.8">1.00×</text>
+<rect x="250" y="358.8" width="3.0" height="8.8" rx="2" fill="#6159a5"/>
+<text class="value" x="257.1" y="366.5">0.06×</text>
+<rect x="250" y="369.5" width="4.1" height="8.8" rx="2" fill="#3f92a8"/>
+<text class="value" x="259.1" y="377.2">0.11×</text>
+<rect x="250" y="380.2" width="11.0" height="8.8" rx="2" fill="#e0a126"/>
+<text class="value" x="266.0" y="388.0">0.30×</text>
+<rect x="742" y="348.0" width="197.5" height="8.8" rx="2" fill="#9f2f2f"/>
+<text class="value" x="944.5" y="355.8">1.00×</text>
+<rect x="742" y="358.8" width="78.8" height="8.8" rx="2" fill="#6159a5"/>
+<text class="value" x="825.8" y="366.5">0.40×</text>
+<rect x="742" y="369.5" width="75.8" height="8.8" rx="2" fill="#3f92a8"/>
+<text class="value" x="822.8" y="377.2">0.38×</text>
+<rect x="742" y="380.2" width="216.7" height="8.8" rx="2" fill="#e0a126"/>
+<text class="value" x="963.7" y="388.0">1.10×</text>
+<text class="label" x="28" y="435">json</text>
+<text class="axis" x="28" y="452">JSON generation</text>
+<line class="grid" x1="28" y1="479" x2="1172" y2="479"/>
+<rect x="250" y="418.0" width="35.9" height="9.0" rx="2" fill="#9f2f2f"/>
+<text class="value" x="290.9" y="426.0">1.00×</text>
+<rect x="250" y="429.0" width="18.8" height="9.0" rx="2" fill="#3f92a8"/>
+<text class="value" x="273.8" y="437.0">0.52×</text>
+<rect x="250" y="440.0" width="68.4" height="9.0" rx="2" fill="#e0a126"/>
+<text class="value" x="323.4" y="448.0">1.90×</text>
+<rect x="742" y="418.0" width="197.5" height="9.0" rx="2" fill="#9f2f2f"/>
+<text class="value" x="944.5" y="426.0">1.00×</text>
+<rect x="742" y="429.0" width="215.5" height="9.0" rx="2" fill="#3f92a8"/>
+<text class="value" x="962.5" y="437.0">1.09×</text>
+<rect x="742" y="440.0" width="328.4" height="9.0" rx="2" fill="#e0a126"/>
+<text class="value" x="1075.4" y="448.0">1.66×</text>
+<text class="label" x="28" y="505">json</text>
+<text class="axis" x="28" y="522">JSON parsing</text>
+<line class="grid" x1="28" y1="549" x2="1172" y2="549"/>
+<rect x="250" y="488.0" width="35.9" height="9.0" rx="2" fill="#9f2f2f"/>
+<text class="value" x="290.9" y="496.0">1.00×</text>
+<rect x="250" y="499.0" width="7.3" height="9.0" rx="2" fill="#3f92a8"/>
+<text class="value" x="262.3" y="507.0">0.20×</text>
+<rect x="250" y="510.0" width="5.9" height="9.0" rx="2" fill="#e0a126"/>
+<text class="value" x="260.9" y="518.0">0.16×</text>
+<rect x="742" y="488.0" width="197.5" height="9.0" rx="2" fill="#9f2f2f"/>
+<text class="value" x="944.5" y="496.0">1.00×</text>
+<rect x="742" y="499.0" width="235.0" height="9.0" rx="2" fill="#3f92a8"/>
+<text class="value" x="982.0" y="507.0">1.19×</text>
+<rect x="742" y="510.0" width="317.6" height="9.0" rx="2" fill="#e0a126"/>
+<text class="value" x="1064.6" y="518.0">1.61×</text>
+<text class="label" x="28" y="575">logging</text>
+<text class="axis" x="28" y="592">filtered structured logging</text>
+<line class="grid" x1="28" y1="619" x2="1172" y2="619"/>
+<rect x="250" y="558.0" width="35.9" height="9.0" rx="2" fill="#9f2f2f"/>
+<text class="value" x="290.9" y="566.0">1.00×</text>
+<rect x="250" y="569.0" width="8.3" height="9.0" rx="2" fill="#3f92a8"/>
+<text class="value" x="263.3" y="577.0">0.23×</text>
+<rect x="250" y="580.0" width="210.3" height="9.0" rx="2" fill="#e0a126"/>
+<text class="value" x="465.3" y="588.0">5.86×</text>
+<rect x="742" y="558.0" width="197.5" height="9.0" rx="2" fill="#9f2f2f"/>
+<text class="value" x="944.5" y="566.0">1.00×</text>
+<rect x="742" y="569.0" width="81.4" height="9.0" rx="2" fill="#3f92a8"/>
+<text class="value" x="828.4" y="577.0">0.41×</text>
+<rect x="742" y="580.0" width="354.7" height="9.0" rx="2" fill="#e0a126"/>
+<text class="value" x="1101.7" y="588.0">1.80×</text>
+<text class="label" x="28" y="645">logging</text>
+<text class="axis" x="28" y="662">enabled structured logging</text>
+<line class="grid" x1="28" y1="689" x2="1172" y2="689"/>
+<rect x="250" y="628.0" width="35.9" height="9.0" rx="2" fill="#9f2f2f"/>
+<text class="value" x="290.9" y="636.0">1.00×</text>
+<rect x="250" y="639.0" width="15.3" height="9.0" rx="2" fill="#3f92a8"/>
+<text class="value" x="270.3" y="647.0">0.43×</text>
+<rect x="250" y="650.0" width="174.8" height="9.0" rx="2" fill="#e0a126"/>
+<text class="value" x="429.8" y="658.0">4.87×</text>
+<rect x="742" y="628.0" width="197.5" height="9.0" rx="2" fill="#9f2f2f"/>
+<text class="value" x="944.5" y="636.0">1.00×</text>
+<rect x="742" y="639.0" width="197.9" height="9.0" rx="2" fill="#3f92a8"/>
+<text class="value" x="944.9" y="647.0">1.00×</text>
+<rect x="742" y="650.0" width="360.0" height="9.0" rx="2" fill="#e0a126"/>
+<text class="value" x="1107.0" y="658.0">1.82×</text>
+<text class="label" x="28" y="715">http</text>
+<text class="axis" x="28" y="732">HTTP parse and render</text>
+<line class="grid" x1="28" y1="759" x2="1172" y2="759"/>
+<rect x="250" y="698.0" width="35.9" height="9.0" rx="2" fill="#9f2f2f"/>
+<text class="value" x="290.9" y="706.0">1.00×</text>
+<rect x="250" y="709.0" width="29.1" height="9.0" rx="2" fill="#3f92a8"/>
+<text class="value" x="284.1" y="717.0">0.81×</text>
+<rect x="742" y="698.0" width="197.5" height="9.0" rx="2" fill="#9f2f2f"/>
+<text class="value" x="944.5" y="706.0">1.00×</text>
+<rect x="742" y="709.0" width="378.0" height="9.0" rx="2" fill="#3f92a8"/>
+<text class="value" x="1107.0" y="717.0">1.91×</text>
+<text class="label" x="28" y="785">runtime</text>
+<text class="axis" x="28" y="802">bounded channel</text>
+<line class="grid" x1="28" y1="829" x2="1172" y2="829"/>
+<rect x="250" y="768.0" width="35.9" height="9.0" rx="2" fill="#9f2f2f"/>
+<text class="value" x="290.9" y="776.0">1.00×</text>
+<rect x="250" y="779.0" width="9.0" height="9.0" rx="2" fill="#3f92a8"/>
+<text class="value" x="264.0" y="787.0">0.25×</text>
+<rect x="250" y="790.0" width="361.0" height="9.0" rx="2" fill="#e0a126"/>
+<text class="value" x="615.0" y="798.0">10.05×</text>
+<rect x="742" y="768.0" width="197.5" height="9.0" rx="2" fill="#9f2f2f"/>
+<text class="value" x="944.5" y="776.0">1.00×</text>
+<rect x="742" y="779.0" width="65.6" height="9.0" rx="2" fill="#3f92a8"/>
+<text class="value" x="812.6" y="787.0">0.33×</text>
+<rect x="742" y="790.0" width="297.6" height="9.0" rx="2" fill="#e0a126"/>
+<text class="value" x="1044.6" y="798.0">1.51×</text>
+<text class="label" x="28" y="855">sqlite</text>
+<text class="axis" x="28" y="872">SQLite bound inserts</text>
+<line class="grid" x1="28" y1="899" x2="1172" y2="899"/>
+<rect x="250" y="838.0" width="35.9" height="9.0" rx="2" fill="#9f2f2f"/>
+<text class="value" x="290.9" y="846.0">1.00×</text>
+<rect x="250" y="849.0" width="55.4" height="9.0" rx="2" fill="#e0a126"/>
+<text class="value" x="310.4" y="857.0">1.54×</text>
+<rect x="742" y="838.0" width="197.5" height="9.0" rx="2" fill="#9f2f2f"/>
+<text class="value" x="944.5" y="846.0">1.00×</text>
+<rect x="742" y="849.0" width="270.8" height="9.0" rx="2" fill="#e0a126"/>
+<text class="value" x="1017.8" y="857.0">1.37×</text>
+<text class="label" x="28" y="925">sqlite</text>
+<text class="axis" x="28" y="942">SQLite indexed lookups</text>
+<line class="grid" x1="28" y1="969" x2="1172" y2="969"/>
+<rect x="250" y="908.0" width="35.9" height="9.0" rx="2" fill="#9f2f2f"/>
+<text class="value" x="290.9" y="916.0">1.00×</text>
+<rect x="250" y="919.0" width="41.8" height="9.0" rx="2" fill="#e0a126"/>
+<text class="value" x="296.8" y="927.0">1.16×</text>
+<rect x="742" y="908.0" width="197.5" height="9.0" rx="2" fill="#9f2f2f"/>
+<text class="value" x="944.5" y="916.0">1.00×</text>
+<rect x="742" y="919.0" width="273.1" height="9.0" rx="2" fill="#e0a126"/>
+<text class="value" x="1020.1" y="927.0">1.38×</text>
+<text class="label" x="28" y="995">fileio</text>
+<text class="axis" x="28" y="1012">64 MiB file streaming</text>
+<line class="grid" x1="28" y1="1039" x2="1172" y2="1039"/>
+<rect x="250" y="978.0" width="35.9" height="8.8" rx="2" fill="#9f2f2f"/>
+<text class="value" x="290.9" y="985.8">1.00×</text>
+<rect x="250" y="988.8" width="30.2" height="8.8" rx="2" fill="#6159a5"/>
+<text class="value" x="285.2" y="996.5">0.84×</text>
+<rect x="250" y="999.5" width="31.3" height="8.8" rx="2" fill="#3f92a8"/>
+<text class="value" x="286.3" y="1007.2">0.87×</text>
+<rect x="250" y="1010.2" width="51.0" height="8.8" rx="2" fill="#e0a126"/>
+<text class="value" x="306.0" y="1018.0">1.42×</text>
+<rect x="742" y="978.0" width="197.5" height="8.8" rx="2" fill="#9f2f2f"/>
+<text class="value" x="944.5" y="985.8">1.00×</text>
+<rect x="742" y="988.8" width="99.3" height="8.8" rx="2" fill="#6159a5"/>
+<text class="value" x="846.3" y="996.5">0.50×</text>
+<rect x="742" y="999.5" width="77.0" height="8.8" rx="2" fill="#3f92a8"/>
+<text class="value" x="824.0" y="1007.2">0.39×</text>
+<rect x="742" y="1010.2" width="304.7" height="8.8" rx="2" fill="#e0a126"/>
+<text class="value" x="1051.7" y="1018.0">1.54×</text>
+<text class="label" x="28" y="1065">fileio</text>
+<text class="axis" x="28" y="1082">64 MiB whole-file read</text>
+<line class="grid" x1="28" y1="1109" x2="1172" y2="1109"/>
+<rect x="250" y="1048.0" width="35.9" height="8.8" rx="2" fill="#9f2f2f"/>
+<text class="value" x="290.9" y="1055.8">1.00×</text>
+<rect x="250" y="1058.8" width="43.3" height="8.8" rx="2" fill="#6159a5"/>
+<text class="value" x="298.3" y="1066.5">1.21×</text>
+<rect x="250" y="1069.5" width="21.5" height="8.8" rx="2" fill="#3f92a8"/>
+<text class="value" x="276.5" y="1077.2">0.60×</text>
+<rect x="250" y="1080.2" width="33.2" height="8.8" rx="2" fill="#e0a126"/>
+<text class="value" x="288.2" y="1088.0">0.93×</text>
+<rect x="742" y="1048.0" width="197.5" height="8.8" rx="2" fill="#9f2f2f"/>
+<text class="value" x="944.5" y="1055.8">1.00×</text>
+<rect x="742" y="1058.8" width="97.2" height="8.8" rx="2" fill="#6159a5"/>
+<text class="value" x="844.2" y="1066.5">0.49×</text>
+<rect x="742" y="1069.5" width="191.2" height="8.8" rx="2" fill="#3f92a8"/>
+<text class="value" x="938.2" y="1077.2">0.97×</text>
+<rect x="742" y="1080.2" width="201.3" height="8.8" rx="2" fill="#e0a126"/>
+<text class="value" x="948.3" y="1088.0">1.02×</text>
+<text class="label" x="28" y="1135">resource</text>
+<text class="axis" x="28" y="1152">scoped file lifetime</text>
+<line class="grid" x1="28" y1="1179" x2="1172" y2="1179"/>
+<rect x="250" y="1118.0" width="35.9" height="8.8" rx="2" fill="#9f2f2f"/>
+<text class="value" x="290.9" y="1125.8">1.00×</text>
+<rect x="250" y="1128.8" width="41.8" height="8.8" rx="2" fill="#6159a5"/>
+<text class="value" x="296.8" y="1136.5">1.17×</text>
+<rect x="250" y="1139.5" width="64.7" height="8.8" rx="2" fill="#3f92a8"/>
+<text class="value" x="319.7" y="1147.2">1.80×</text>
+<rect x="250" y="1150.2" width="94.7" height="8.8" rx="2" fill="#e0a126"/>
+<text class="value" x="349.7" y="1158.0">2.64×</text>
+<rect x="742" y="1118.0" width="197.5" height="8.8" rx="2" fill="#9f2f2f"/>
+<text class="value" x="944.5" y="1125.8">1.00×</text>
+<rect x="742" y="1128.8" width="99.3" height="8.8" rx="2" fill="#6159a5"/>
+<text class="value" x="846.3" y="1136.5">0.50×</text>
+<rect x="742" y="1139.5" width="144.0" height="8.8" rx="2" fill="#3f92a8"/>
+<text class="value" x="891.0" y="1147.2">0.73×</text>
+<rect x="742" y="1150.2" width="303.2" height="8.8" rx="2" fill="#e0a126"/>
+<text class="value" x="1050.2" y="1158.0">1.53×</text>
+<text class="sub" x="28" y="1222">AMD Ryzen 9 5950X 16-Core Processor (32 threads) · 2026-07-27T18:21:01+00:00</text>
+</svg>

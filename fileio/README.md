@@ -90,6 +90,16 @@ the filesystem rather than the number of bytes for small files. It belongs on
 configuration, checkpoint, and migration paths, not on a hot request path.
 Measure the actual target filesystem with `./run-benchmarks.sh fileio`.
 
+### Across languages
+
+![64 MiB streaming in Koka, C++, Go, and Python](../benchmarks/cross/figures/storage-stream-64m-64k.svg)
+
+![Whole-file reads in Koka, C++, Go, and Python](../benchmarks/cross/figures/storage-read-whole-file.svg)
+
+The suite reads and checksums the same generated file as both a stream of
+64 KiB chunks and a complete value. See the
+[ten-run time/RSS methodology](../benchmarks/cross/README.md).
+
 ## Worked example
 
 ```koka

@@ -86,6 +86,17 @@ dependency tree, and the manifest lives inside that tree, so writing
 `koka.lock` would change the tree, which would change the checksum the lock has
 to record: the lockfile would never converge.
 
+### Cross-language figures
+
+Like the Koka compiler's Perceus figure, the package overview compares
+representative operations across languages, averages execution time and peak
+RSS over ten processes, and normalizes them to Koka. The suite covers common
+construction, parsing, lookup, logging, I/O, database, concurrency, HTTP, and
+resource-lifetime paths. Commands, checksums, and raw samples are in the
+[cross-language methodology and results](benchmarks/cross/README.md).
+
+![Koka packages across languages](benchmarks/cross/figures/cross-language.svg)
+
 ## Conventions
 
 **Effect rows.**  Koka only subsumes *closed* effect rows.  A function that

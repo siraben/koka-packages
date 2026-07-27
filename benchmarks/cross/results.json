@@ -1,0 +1,3022 @@
+{
+  "cases": [
+    {
+      "chart_label": "byte builder",
+      "equivalence": "Each repetition creates a fresh byte builder, appends the fixed 10-byte ASCII chunk `0123456789` exactly 80000 times, finalizes it, and folds its length plus a non-empty marker into a modulo-1000000007 checksum.",
+      "id": "data-byte-builder",
+      "implementations": [
+        {
+          "checksum": "838184317",
+          "command": [
+            "build/data-byte-builder-koka",
+            "100"
+          ],
+          "id": "data-byte-builder-koka",
+          "language": "Koka",
+          "mean_elapsed_ms": 82.462,
+          "mean_peak_rss_kib": 8129,
+          "relative_rss": 1.0,
+          "relative_time": 1.0,
+          "samples": [
+            {
+              "elapsed_ms": 83.755,
+              "peak_rss_kib": 8168
+            },
+            {
+              "elapsed_ms": 80.401,
+              "peak_rss_kib": 8152
+            },
+            {
+              "elapsed_ms": 84.221,
+              "peak_rss_kib": 8140
+            },
+            {
+              "elapsed_ms": 84.114,
+              "peak_rss_kib": 8012
+            },
+            {
+              "elapsed_ms": 79.578,
+              "peak_rss_kib": 8192
+            },
+            {
+              "elapsed_ms": 81.157,
+              "peak_rss_kib": 8120
+            },
+            {
+              "elapsed_ms": 83.285,
+              "peak_rss_kib": 8168
+            },
+            {
+              "elapsed_ms": 82.46,
+              "peak_rss_kib": 8184
+            },
+            {
+              "elapsed_ms": 84.696,
+              "peak_rss_kib": 8056
+            },
+            {
+              "elapsed_ms": 80.955,
+              "peak_rss_kib": 8096
+            }
+          ],
+          "stdev_elapsed_ms": 1.817,
+          "version": "Koka 3.2.7, 00:00:00 Jan  1 1980 (ghc release version)"
+        },
+        {
+          "checksum": "838184317",
+          "command": [
+            "build/data-byte-builder-cpp",
+            "100"
+          ],
+          "id": "data-byte-builder-cpp",
+          "language": "C++",
+          "mean_elapsed_ms": 9.916,
+          "mean_peak_rss_kib": 4370,
+          "relative_rss": 0.538,
+          "relative_time": 0.12,
+          "samples": [
+            {
+              "elapsed_ms": 9.919,
+              "peak_rss_kib": 4360
+            },
+            {
+              "elapsed_ms": 9.921,
+              "peak_rss_kib": 4340
+            },
+            {
+              "elapsed_ms": 9.869,
+              "peak_rss_kib": 4348
+            },
+            {
+              "elapsed_ms": 9.892,
+              "peak_rss_kib": 4432
+            },
+            {
+              "elapsed_ms": 9.898,
+              "peak_rss_kib": 4488
+            },
+            {
+              "elapsed_ms": 9.929,
+              "peak_rss_kib": 4344
+            },
+            {
+              "elapsed_ms": 9.913,
+              "peak_rss_kib": 4348
+            },
+            {
+              "elapsed_ms": 10.511,
+              "peak_rss_kib": 4348
+            },
+            {
+              "elapsed_ms": 9.912,
+              "peak_rss_kib": 4348
+            },
+            {
+              "elapsed_ms": 9.397,
+              "peak_rss_kib": 4344
+            }
+          ],
+          "stdev_elapsed_ms": 0.264,
+          "version": "g++ (GCC) 15.2.0"
+        },
+        {
+          "checksum": "838184317",
+          "command": [
+            "build/data-byte-builder-go",
+            "100"
+          ],
+          "id": "data-byte-builder-go",
+          "language": "Go",
+          "mean_elapsed_ms": 30.039,
+          "mean_peak_rss_kib": 8635,
+          "relative_rss": 1.062,
+          "relative_time": 0.364,
+          "samples": [
+            {
+              "elapsed_ms": 31.084,
+              "peak_rss_kib": 8316
+            },
+            {
+              "elapsed_ms": 31.11,
+              "peak_rss_kib": 8932
+            },
+            {
+              "elapsed_ms": 30.338,
+              "peak_rss_kib": 8200
+            },
+            {
+              "elapsed_ms": 30.341,
+              "peak_rss_kib": 8864
+            },
+            {
+              "elapsed_ms": 29.518,
+              "peak_rss_kib": 8304
+            },
+            {
+              "elapsed_ms": 28.527,
+              "peak_rss_kib": 8596
+            },
+            {
+              "elapsed_ms": 28.567,
+              "peak_rss_kib": 8324
+            },
+            {
+              "elapsed_ms": 29.76,
+              "peak_rss_kib": 8856
+            },
+            {
+              "elapsed_ms": 30.855,
+              "peak_rss_kib": 9572
+            },
+            {
+              "elapsed_ms": 30.288,
+              "peak_rss_kib": 8384
+            }
+          ],
+          "stdev_elapsed_ms": 0.94,
+          "version": "go version go1.26.2 linux/amd64"
+        },
+        {
+          "checksum": "838184317",
+          "command": [
+            "python3",
+            "byte_builder.py",
+            "100"
+          ],
+          "id": "data-byte-builder-python",
+          "language": "Python",
+          "mean_elapsed_ms": 298.245,
+          "mean_peak_rss_kib": 12434,
+          "relative_rss": 1.53,
+          "relative_time": 3.617,
+          "samples": [
+            {
+              "elapsed_ms": 299.533,
+              "peak_rss_kib": 12352
+            },
+            {
+              "elapsed_ms": 295.032,
+              "peak_rss_kib": 12488
+            },
+            {
+              "elapsed_ms": 298.98,
+              "peak_rss_kib": 12364
+            },
+            {
+              "elapsed_ms": 295.064,
+              "peak_rss_kib": 12448
+            },
+            {
+              "elapsed_ms": 295.332,
+              "peak_rss_kib": 12452
+            },
+            {
+              "elapsed_ms": 299.118,
+              "peak_rss_kib": 12376
+            },
+            {
+              "elapsed_ms": 299.484,
+              "peak_rss_kib": 12456
+            },
+            {
+              "elapsed_ms": 297.866,
+              "peak_rss_kib": 12512
+            },
+            {
+              "elapsed_ms": 300.129,
+              "peak_rss_kib": 12432
+            },
+            {
+              "elapsed_ms": 301.908,
+              "peak_rss_kib": 12456
+            }
+          ],
+          "stdev_elapsed_ms": 2.37,
+          "version": "Python 3.13.12"
+        }
+      ],
+      "manifest": "benchmarks/cross/cases/data/manifest.json",
+      "package": "bytes",
+      "title": "Byte builder: 80k fixed-chunk appends",
+      "unit": "repetition (80k appends)",
+      "work": 100
+    },
+    {
+      "chart_label": "byte delimiter scan",
+      "equivalence": "Setup builds the same 8388608-byte buffer as 256 repetitions of 32767 ASCII `a` bytes followed by `|`. Each work unit starts at byte zero, repeatedly finds the next `|` with the language's byte-search primitive, advances one byte past it, and folds each one-based match position into a per-scan sum. The per-scan sums are folded into the same modulo-1000000007 checksum. Setup is performed once per process and is included in process time.",
+      "id": "data-byte-search",
+      "implementations": [
+        {
+          "checksum": "467776642",
+          "command": [
+            "build/data-byte-search-koka",
+            "500"
+          ],
+          "id": "data-byte-search-koka",
+          "language": "Koka",
+          "mean_elapsed_ms": 46.261,
+          "mean_peak_rss_kib": 25785,
+          "relative_rss": 1.0,
+          "relative_time": 1.0,
+          "samples": [
+            {
+              "elapsed_ms": 44.568,
+              "peak_rss_kib": 25820
+            },
+            {
+              "elapsed_ms": 46.175,
+              "peak_rss_kib": 25688
+            },
+            {
+              "elapsed_ms": 47.28,
+              "peak_rss_kib": 25776
+            },
+            {
+              "elapsed_ms": 47.367,
+              "peak_rss_kib": 25856
+            },
+            {
+              "elapsed_ms": 45.992,
+              "peak_rss_kib": 25800
+            },
+            {
+              "elapsed_ms": 45.131,
+              "peak_rss_kib": 25856
+            },
+            {
+              "elapsed_ms": 47.89,
+              "peak_rss_kib": 25824
+            },
+            {
+              "elapsed_ms": 45.791,
+              "peak_rss_kib": 25696
+            },
+            {
+              "elapsed_ms": 45.147,
+              "peak_rss_kib": 25732
+            },
+            {
+              "elapsed_ms": 47.269,
+              "peak_rss_kib": 25804
+            }
+          ],
+          "stdev_elapsed_ms": 1.136,
+          "version": "Koka 3.2.7, 00:00:00 Jan  1 1980 (ghc release version)"
+        },
+        {
+          "checksum": "467776642",
+          "command": [
+            "build/data-byte-search-cpp",
+            "500"
+          ],
+          "id": "data-byte-search-cpp",
+          "language": "C++",
+          "mean_elapsed_ms": 44.861,
+          "mean_peak_rss_kib": 11804,
+          "relative_rss": 0.458,
+          "relative_time": 0.97,
+          "samples": [
+            {
+              "elapsed_ms": 46.215,
+              "peak_rss_kib": 11796
+            },
+            {
+              "elapsed_ms": 43.21,
+              "peak_rss_kib": 11796
+            },
+            {
+              "elapsed_ms": 43.705,
+              "peak_rss_kib": 11796
+            },
+            {
+              "elapsed_ms": 43.823,
+              "peak_rss_kib": 11792
+            },
+            {
+              "elapsed_ms": 45.546,
+              "peak_rss_kib": 11780
+            },
+            {
+              "elapsed_ms": 44.388,
+              "peak_rss_kib": 11920
+            },
+            {
+              "elapsed_ms": 44.439,
+              "peak_rss_kib": 11808
+            },
+            {
+              "elapsed_ms": 46.3,
+              "peak_rss_kib": 11764
+            },
+            {
+              "elapsed_ms": 45.608,
+              "peak_rss_kib": 11796
+            },
+            {
+              "elapsed_ms": 45.371,
+              "peak_rss_kib": 11796
+            }
+          ],
+          "stdev_elapsed_ms": 1.092,
+          "version": "g++ (GCC) 15.2.0"
+        },
+        {
+          "checksum": "467776642",
+          "command": [
+            "build/data-byte-search-go",
+            "500"
+          ],
+          "id": "data-byte-search-go",
+          "language": "Go",
+          "mean_elapsed_ms": 53.106,
+          "mean_peak_rss_kib": 11744,
+          "relative_rss": 0.455,
+          "relative_time": 1.148,
+          "samples": [
+            {
+              "elapsed_ms": 51.508,
+              "peak_rss_kib": 11772
+            },
+            {
+              "elapsed_ms": 52.193,
+              "peak_rss_kib": 11688
+            },
+            {
+              "elapsed_ms": 55.095,
+              "peak_rss_kib": 11796
+            },
+            {
+              "elapsed_ms": 52.759,
+              "peak_rss_kib": 11748
+            },
+            {
+              "elapsed_ms": 50.918,
+              "peak_rss_kib": 11696
+            },
+            {
+              "elapsed_ms": 54.021,
+              "peak_rss_kib": 11768
+            },
+            {
+              "elapsed_ms": 54.466,
+              "peak_rss_kib": 11784
+            },
+            {
+              "elapsed_ms": 53.518,
+              "peak_rss_kib": 11684
+            },
+            {
+              "elapsed_ms": 54.396,
+              "peak_rss_kib": 11776
+            },
+            {
+              "elapsed_ms": 52.188,
+              "peak_rss_kib": 11728
+            }
+          ],
+          "stdev_elapsed_ms": 1.399,
+          "version": "go version go1.26.2 linux/amd64"
+        },
+        {
+          "checksum": "467776642",
+          "command": [
+            "python3",
+            "byte_scan.py",
+            "500"
+          ],
+          "id": "data-byte-search-python",
+          "language": "Python",
+          "mean_elapsed_ms": 77.731,
+          "mean_peak_rss_kib": 19864,
+          "relative_rss": 0.77,
+          "relative_time": 1.68,
+          "samples": [
+            {
+              "elapsed_ms": 79.222,
+              "peak_rss_kib": 19848
+            },
+            {
+              "elapsed_ms": 78.304,
+              "peak_rss_kib": 19848
+            },
+            {
+              "elapsed_ms": 79.878,
+              "peak_rss_kib": 19852
+            },
+            {
+              "elapsed_ms": 78.404,
+              "peak_rss_kib": 19844
+            },
+            {
+              "elapsed_ms": 78.201,
+              "peak_rss_kib": 19848
+            },
+            {
+              "elapsed_ms": 75.897,
+              "peak_rss_kib": 19848
+            },
+            {
+              "elapsed_ms": 76.307,
+              "peak_rss_kib": 19852
+            },
+            {
+              "elapsed_ms": 77.331,
+              "peak_rss_kib": 19968
+            },
+            {
+              "elapsed_ms": 75.618,
+              "peak_rss_kib": 19880
+            },
+            {
+              "elapsed_ms": 78.149,
+              "peak_rss_kib": 19852
+            }
+          ],
+          "stdev_elapsed_ms": 1.415,
+          "version": "Python 3.13.12"
+        }
+      ],
+      "manifest": "benchmarks/cross/cases/data/manifest.json",
+      "package": "bytes",
+      "title": "Byte delimiter scan over 8 MiB",
+      "unit": "full-buffer scans",
+      "work": 500
+    },
+    {
+      "chart_label": "hashmap insert+lookup",
+      "equivalence": "Create a fresh map, insert each integer key i in [0, work) once with value (17*i + 3) modulo 1000003, then look up every key once in reverse order and print the sum of found values. Koka uses a persistent hmap; C++, Go, and Python use their idiomatic mutable hash maps.",
+      "id": "data-hashmap-insert-lookup",
+      "implementations": [
+        {
+          "checksum": "242647602968",
+          "command": [
+            "build/data-hashmap-insert-lookup-koka",
+            "500000"
+          ],
+          "id": "data-hashmap-insert-lookup-koka",
+          "language": "Koka",
+          "mean_elapsed_ms": 407.234,
+          "mean_peak_rss_kib": 58639,
+          "relative_rss": 1.0,
+          "relative_time": 1.0,
+          "samples": [
+            {
+              "elapsed_ms": 412.109,
+              "peak_rss_kib": 58676
+            },
+            {
+              "elapsed_ms": 406.993,
+              "peak_rss_kib": 58592
+            },
+            {
+              "elapsed_ms": 403.54,
+              "peak_rss_kib": 58632
+            },
+            {
+              "elapsed_ms": 407.226,
+              "peak_rss_kib": 58676
+            },
+            {
+              "elapsed_ms": 404.176,
+              "peak_rss_kib": 58584
+            },
+            {
+              "elapsed_ms": 411.583,
+              "peak_rss_kib": 58684
+            },
+            {
+              "elapsed_ms": 410.933,
+              "peak_rss_kib": 58612
+            },
+            {
+              "elapsed_ms": 406.305,
+              "peak_rss_kib": 58588
+            },
+            {
+              "elapsed_ms": 406.055,
+              "peak_rss_kib": 58688
+            },
+            {
+              "elapsed_ms": 403.418,
+              "peak_rss_kib": 58656
+            }
+          ],
+          "stdev_elapsed_ms": 3.27,
+          "version": "Koka 3.2.7, 00:00:00 Jan  1 1980 (ghc release version)"
+        },
+        {
+          "checksum": "242647602968",
+          "command": [
+            "build/data-hashmap-insert-lookup-cpp",
+            "500000"
+          ],
+          "id": "data-hashmap-insert-lookup-cpp",
+          "language": "C++",
+          "mean_elapsed_ms": 23.63,
+          "mean_peak_rss_kib": 23389,
+          "relative_rss": 0.399,
+          "relative_time": 0.058,
+          "samples": [
+            {
+              "elapsed_ms": 23.227,
+              "peak_rss_kib": 23392
+            },
+            {
+              "elapsed_ms": 23.873,
+              "peak_rss_kib": 23392
+            },
+            {
+              "elapsed_ms": 22.951,
+              "peak_rss_kib": 23388
+            },
+            {
+              "elapsed_ms": 23.099,
+              "peak_rss_kib": 23392
+            },
+            {
+              "elapsed_ms": 23.244,
+              "peak_rss_kib": 23392
+            },
+            {
+              "elapsed_ms": 24.185,
+              "peak_rss_kib": 23392
+            },
+            {
+              "elapsed_ms": 24.754,
+              "peak_rss_kib": 23372
+            },
+            {
+              "elapsed_ms": 23.772,
+              "peak_rss_kib": 23388
+            },
+            {
+              "elapsed_ms": 24.167,
+              "peak_rss_kib": 23392
+            },
+            {
+              "elapsed_ms": 23.03,
+              "peak_rss_kib": 23392
+            }
+          ],
+          "stdev_elapsed_ms": 0.61,
+          "version": "g++ (GCC) 15.2.0"
+        },
+        {
+          "checksum": "242647602968",
+          "command": [
+            "build/data-hashmap-insert-lookup-go",
+            "500000"
+          ],
+          "id": "data-hashmap-insert-lookup-go",
+          "language": "Go",
+          "mean_elapsed_ms": 45.931,
+          "mean_peak_rss_kib": 22545,
+          "relative_rss": 0.384,
+          "relative_time": 0.113,
+          "samples": [
+            {
+              "elapsed_ms": 42.968,
+              "peak_rss_kib": 22668
+            },
+            {
+              "elapsed_ms": 44.662,
+              "peak_rss_kib": 22560
+            },
+            {
+              "elapsed_ms": 50.573,
+              "peak_rss_kib": 22448
+            },
+            {
+              "elapsed_ms": 51.315,
+              "peak_rss_kib": 22468
+            },
+            {
+              "elapsed_ms": 43.67,
+              "peak_rss_kib": 22552
+            },
+            {
+              "elapsed_ms": 41.151,
+              "peak_rss_kib": 22608
+            },
+            {
+              "elapsed_ms": 43.29,
+              "peak_rss_kib": 22448
+            },
+            {
+              "elapsed_ms": 42.091,
+              "peak_rss_kib": 22536
+            },
+            {
+              "elapsed_ms": 53.203,
+              "peak_rss_kib": 22456
+            },
+            {
+              "elapsed_ms": 46.392,
+              "peak_rss_kib": 22708
+            }
+          ],
+          "stdev_elapsed_ms": 4.265,
+          "version": "go version go1.26.2 linux/amd64"
+        },
+        {
+          "checksum": "242647602968",
+          "command": [
+            "python3",
+            "hashmap_loop.py",
+            "500000"
+          ],
+          "id": "data-hashmap-insert-lookup-python",
+          "language": "Python",
+          "mean_elapsed_ms": 124.141,
+          "mean_peak_rss_kib": 64340,
+          "relative_rss": 1.097,
+          "relative_time": 0.305,
+          "samples": [
+            {
+              "elapsed_ms": 122.875,
+              "peak_rss_kib": 64336
+            },
+            {
+              "elapsed_ms": 122.087,
+              "peak_rss_kib": 64332
+            },
+            {
+              "elapsed_ms": 126.111,
+              "peak_rss_kib": 64376
+            },
+            {
+              "elapsed_ms": 124.859,
+              "peak_rss_kib": 64316
+            },
+            {
+              "elapsed_ms": 121.149,
+              "peak_rss_kib": 64376
+            },
+            {
+              "elapsed_ms": 127.166,
+              "peak_rss_kib": 64328
+            },
+            {
+              "elapsed_ms": 124.273,
+              "peak_rss_kib": 64336
+            },
+            {
+              "elapsed_ms": 127.585,
+              "peak_rss_kib": 64332
+            },
+            {
+              "elapsed_ms": 123.594,
+              "peak_rss_kib": 64332
+            },
+            {
+              "elapsed_ms": 121.715,
+              "peak_rss_kib": 64332
+            }
+          ],
+          "stdev_elapsed_ms": 2.27,
+          "version": "Python 3.13.12"
+        }
+      ],
+      "manifest": "benchmarks/cross/cases/data/manifest.json",
+      "package": "hashmap",
+      "title": "Hashmap insert then lookup",
+      "unit": "insert+lookup key pairs",
+      "work": 500000
+    },
+    {
+      "chart_label": "text builder",
+      "equivalence": "Each repetition creates a fresh text builder, appends the fixed 10-character ASCII chunk `0123456789` exactly 80000 times, finalizes it, and folds its length plus a non-empty marker into a modulo-1000000007 checksum.",
+      "id": "data-text-builder",
+      "implementations": [
+        {
+          "checksum": "838184317",
+          "command": [
+            "build/data-text-builder-koka",
+            "100"
+          ],
+          "id": "data-text-builder-koka",
+          "language": "Koka",
+          "mean_elapsed_ms": 127.549,
+          "mean_peak_rss_kib": 10990,
+          "relative_rss": 1.0,
+          "relative_time": 1.0,
+          "samples": [
+            {
+              "elapsed_ms": 129.569,
+              "peak_rss_kib": 11048
+            },
+            {
+              "elapsed_ms": 127.228,
+              "peak_rss_kib": 10992
+            },
+            {
+              "elapsed_ms": 124.857,
+              "peak_rss_kib": 10972
+            },
+            {
+              "elapsed_ms": 127.272,
+              "peak_rss_kib": 11004
+            },
+            {
+              "elapsed_ms": 124.39,
+              "peak_rss_kib": 11128
+            },
+            {
+              "elapsed_ms": 128.633,
+              "peak_rss_kib": 10928
+            },
+            {
+              "elapsed_ms": 130.205,
+              "peak_rss_kib": 11008
+            },
+            {
+              "elapsed_ms": 127.686,
+              "peak_rss_kib": 10900
+            },
+            {
+              "elapsed_ms": 127.646,
+              "peak_rss_kib": 11008
+            },
+            {
+              "elapsed_ms": 128.008,
+              "peak_rss_kib": 10916
+            }
+          ],
+          "stdev_elapsed_ms": 1.824,
+          "version": "Koka 3.2.7, 00:00:00 Jan  1 1980 (ghc release version)"
+        },
+        {
+          "checksum": "838184317",
+          "command": [
+            "build/data-text-builder-cpp",
+            "100"
+          ],
+          "id": "data-text-builder-cpp",
+          "language": "C++",
+          "mean_elapsed_ms": 11.163,
+          "mean_peak_rss_kib": 4397,
+          "relative_rss": 0.4,
+          "relative_time": 0.088,
+          "samples": [
+            {
+              "elapsed_ms": 10.567,
+              "peak_rss_kib": 4332
+            },
+            {
+              "elapsed_ms": 11.083,
+              "peak_rss_kib": 4348
+            },
+            {
+              "elapsed_ms": 11.084,
+              "peak_rss_kib": 4344
+            },
+            {
+              "elapsed_ms": 10.45,
+              "peak_rss_kib": 4320
+            },
+            {
+              "elapsed_ms": 11.094,
+              "peak_rss_kib": 4344
+            },
+            {
+              "elapsed_ms": 11.194,
+              "peak_rss_kib": 4348
+            },
+            {
+              "elapsed_ms": 12.291,
+              "peak_rss_kib": 4496
+            },
+            {
+              "elapsed_ms": 11.056,
+              "peak_rss_kib": 4348
+            },
+            {
+              "elapsed_ms": 11.667,
+              "peak_rss_kib": 4780
+            },
+            {
+              "elapsed_ms": 11.146,
+              "peak_rss_kib": 4312
+            }
+          ],
+          "stdev_elapsed_ms": 0.519,
+          "version": "g++ (GCC) 15.2.0"
+        },
+        {
+          "checksum": "838184317",
+          "command": [
+            "build/data-text-builder-go",
+            "100"
+          ],
+          "id": "data-text-builder-go",
+          "language": "Go",
+          "mean_elapsed_ms": 19.797,
+          "mean_peak_rss_kib": 8535,
+          "relative_rss": 0.777,
+          "relative_time": 0.155,
+          "samples": [
+            {
+              "elapsed_ms": 19.488,
+              "peak_rss_kib": 8560
+            },
+            {
+              "elapsed_ms": 21.248,
+              "peak_rss_kib": 8536
+            },
+            {
+              "elapsed_ms": 18.909,
+              "peak_rss_kib": 8468
+            },
+            {
+              "elapsed_ms": 20.102,
+              "peak_rss_kib": 8580
+            },
+            {
+              "elapsed_ms": 20.159,
+              "peak_rss_kib": 8728
+            },
+            {
+              "elapsed_ms": 20.079,
+              "peak_rss_kib": 8344
+            },
+            {
+              "elapsed_ms": 18.936,
+              "peak_rss_kib": 8652
+            },
+            {
+              "elapsed_ms": 18.864,
+              "peak_rss_kib": 8552
+            },
+            {
+              "elapsed_ms": 20.682,
+              "peak_rss_kib": 8496
+            },
+            {
+              "elapsed_ms": 19.507,
+              "peak_rss_kib": 8432
+            }
+          ],
+          "stdev_elapsed_ms": 0.801,
+          "version": "go version go1.26.2 linux/amd64"
+        },
+        {
+          "checksum": "838184317",
+          "command": [
+            "python3",
+            "text_builder.py",
+            "100"
+          ],
+          "id": "data-text-builder-python",
+          "language": "Python",
+          "mean_elapsed_ms": 271.711,
+          "mean_peak_rss_kib": 13139,
+          "relative_rss": 1.196,
+          "relative_time": 2.13,
+          "samples": [
+            {
+              "elapsed_ms": 266.287,
+              "peak_rss_kib": 13136
+            },
+            {
+              "elapsed_ms": 270.579,
+              "peak_rss_kib": 13144
+            },
+            {
+              "elapsed_ms": 273.51,
+              "peak_rss_kib": 13132
+            },
+            {
+              "elapsed_ms": 273.029,
+              "peak_rss_kib": 13152
+            },
+            {
+              "elapsed_ms": 272.364,
+              "peak_rss_kib": 13140
+            },
+            {
+              "elapsed_ms": 271.349,
+              "peak_rss_kib": 13136
+            },
+            {
+              "elapsed_ms": 272.534,
+              "peak_rss_kib": 13140
+            },
+            {
+              "elapsed_ms": 273.492,
+              "peak_rss_kib": 13144
+            },
+            {
+              "elapsed_ms": 270.976,
+              "peak_rss_kib": 13136
+            },
+            {
+              "elapsed_ms": 272.99,
+              "peak_rss_kib": 13128
+            }
+          ],
+          "stdev_elapsed_ms": 2.167,
+          "version": "Python 3.13.12"
+        }
+      ],
+      "manifest": "benchmarks/cross/cases/data/manifest.json",
+      "package": "strbuilder",
+      "title": "Text builder: 80k fixed-chunk appends",
+      "unit": "repetition (80k appends)",
+      "work": 100
+    },
+    {
+      "chart_label": "JSON generation",
+      "equivalence": "Each implementation constructs [0,...,1999] once, then uses its language's JSON library to serialize that value once per repetition in compact form. The checksum is the sum of encoded lengths.",
+      "id": "service-json-generate-2k",
+      "implementations": [
+        {
+          "checksum": "8891000",
+          "command": [
+            "build/koka",
+            "1000"
+          ],
+          "id": "service-json-generate-2k-koka",
+          "language": "Koka",
+          "mean_elapsed_ms": 66.82,
+          "mean_peak_rss_kib": 7382,
+          "relative_rss": 1.0,
+          "relative_time": 1.0,
+          "samples": [
+            {
+              "elapsed_ms": 65.352,
+              "peak_rss_kib": 7272
+            },
+            {
+              "elapsed_ms": 66.469,
+              "peak_rss_kib": 7480
+            },
+            {
+              "elapsed_ms": 67.188,
+              "peak_rss_kib": 7348
+            },
+            {
+              "elapsed_ms": 66.542,
+              "peak_rss_kib": 7344
+            },
+            {
+              "elapsed_ms": 67.455,
+              "peak_rss_kib": 7452
+            },
+            {
+              "elapsed_ms": 65.064,
+              "peak_rss_kib": 7384
+            },
+            {
+              "elapsed_ms": 67.339,
+              "peak_rss_kib": 7444
+            },
+            {
+              "elapsed_ms": 68.39,
+              "peak_rss_kib": 7332
+            },
+            {
+              "elapsed_ms": 67.34,
+              "peak_rss_kib": 7288
+            },
+            {
+              "elapsed_ms": 67.065,
+              "peak_rss_kib": 7476
+            }
+          ],
+          "stdev_elapsed_ms": 1.002,
+          "version": "Koka 3.2.7, 00:00:00 Jan  1 1980 (ghc release version)"
+        },
+        {
+          "checksum": "8891000",
+          "command": [
+            "build/go",
+            "1000"
+          ],
+          "id": "service-json-generate-2k-go",
+          "language": "Go",
+          "mean_elapsed_ms": 35.013,
+          "mean_peak_rss_kib": 8057,
+          "relative_rss": 1.091,
+          "relative_time": 0.524,
+          "samples": [
+            {
+              "elapsed_ms": 34.991,
+              "peak_rss_kib": 8168
+            },
+            {
+              "elapsed_ms": 34.289,
+              "peak_rss_kib": 7632
+            },
+            {
+              "elapsed_ms": 36.133,
+              "peak_rss_kib": 8604
+            },
+            {
+              "elapsed_ms": 36.164,
+              "peak_rss_kib": 8088
+            },
+            {
+              "elapsed_ms": 34.852,
+              "peak_rss_kib": 8020
+            },
+            {
+              "elapsed_ms": 33.825,
+              "peak_rss_kib": 8040
+            },
+            {
+              "elapsed_ms": 34.757,
+              "peak_rss_kib": 8136
+            },
+            {
+              "elapsed_ms": 34.424,
+              "peak_rss_kib": 8052
+            },
+            {
+              "elapsed_ms": 35.804,
+              "peak_rss_kib": 7728
+            },
+            {
+              "elapsed_ms": 34.887,
+              "peak_rss_kib": 8104
+            }
+          ],
+          "stdev_elapsed_ms": 0.788,
+          "version": "go version go1.26.2 linux/amd64"
+        },
+        {
+          "checksum": "8891000",
+          "command": [
+            "python3",
+            "python.py",
+            "1000"
+          ],
+          "id": "service-json-generate-2k-python",
+          "language": "Python",
+          "mean_elapsed_ms": 127.253,
+          "mean_peak_rss_kib": 12276,
+          "relative_rss": 1.663,
+          "relative_time": 1.904,
+          "samples": [
+            {
+              "elapsed_ms": 122.247,
+              "peak_rss_kib": 12300
+            },
+            {
+              "elapsed_ms": 125.567,
+              "peak_rss_kib": 12280
+            },
+            {
+              "elapsed_ms": 124.918,
+              "peak_rss_kib": 12256
+            },
+            {
+              "elapsed_ms": 131.049,
+              "peak_rss_kib": 12260
+            },
+            {
+              "elapsed_ms": 129.43,
+              "peak_rss_kib": 12256
+            },
+            {
+              "elapsed_ms": 125.111,
+              "peak_rss_kib": 12296
+            },
+            {
+              "elapsed_ms": 130.328,
+              "peak_rss_kib": 12292
+            },
+            {
+              "elapsed_ms": 127.473,
+              "peak_rss_kib": 12264
+            },
+            {
+              "elapsed_ms": 126.484,
+              "peak_rss_kib": 12256
+            },
+            {
+              "elapsed_ms": 129.918,
+              "peak_rss_kib": 12304
+            }
+          ],
+          "stdev_elapsed_ms": 2.873,
+          "version": "Python 3.13.12"
+        }
+      ],
+      "manifest": "benchmarks/cross/cases/service/manifest.json",
+      "package": "json",
+      "title": "Generate a compact JSON array of 2,000 integers",
+      "unit": "documents",
+      "work": 1000
+    },
+    {
+      "chart_label": "filtered structured logging",
+      "equivalence": "Each implementation constructs the same eight string fields and its logger once, configures the minimum level to ERROR, and invokes an INFO structured-log call once per repetition. The level check rejects the call before rendering or emission, and the checksum is the requested call count.",
+      "id": "service-logging-filtered-eight-fields",
+      "implementations": [
+        {
+          "checksum": "3000000",
+          "command": [
+            "build/koka",
+            "3000000"
+          ],
+          "id": "service-logging-filtered-eight-fields-koka",
+          "language": "Koka",
+          "mean_elapsed_ms": 76.471,
+          "mean_peak_rss_kib": 7433,
+          "relative_rss": 1.0,
+          "relative_time": 1.0,
+          "samples": [
+            {
+              "elapsed_ms": 76.562,
+              "peak_rss_kib": 7468
+            },
+            {
+              "elapsed_ms": 75.916,
+              "peak_rss_kib": 7368
+            },
+            {
+              "elapsed_ms": 76.54,
+              "peak_rss_kib": 7460
+            },
+            {
+              "elapsed_ms": 75.21,
+              "peak_rss_kib": 7380
+            },
+            {
+              "elapsed_ms": 76.874,
+              "peak_rss_kib": 7500
+            },
+            {
+              "elapsed_ms": 78.254,
+              "peak_rss_kib": 7488
+            },
+            {
+              "elapsed_ms": 74.771,
+              "peak_rss_kib": 7368
+            },
+            {
+              "elapsed_ms": 76.591,
+              "peak_rss_kib": 7428
+            },
+            {
+              "elapsed_ms": 75.674,
+              "peak_rss_kib": 7372
+            },
+            {
+              "elapsed_ms": 78.319,
+              "peak_rss_kib": 7496
+            }
+          ],
+          "stdev_elapsed_ms": 1.165,
+          "version": "Koka 3.2.7, 00:00:00 Jan  1 1980 (ghc release version)"
+        },
+        {
+          "checksum": "3000000",
+          "command": [
+            "build/go",
+            "3000000"
+          ],
+          "id": "service-logging-filtered-eight-fields-go",
+          "language": "Go",
+          "mean_elapsed_ms": 17.61,
+          "mean_peak_rss_kib": 3066,
+          "relative_rss": 0.412,
+          "relative_time": 0.23,
+          "samples": [
+            {
+              "elapsed_ms": 17.408,
+              "peak_rss_kib": 3140
+            },
+            {
+              "elapsed_ms": 17.708,
+              "peak_rss_kib": 3048
+            },
+            {
+              "elapsed_ms": 17.578,
+              "peak_rss_kib": 3048
+            },
+            {
+              "elapsed_ms": 17.66,
+              "peak_rss_kib": 3048
+            },
+            {
+              "elapsed_ms": 17.64,
+              "peak_rss_kib": 3108
+            },
+            {
+              "elapsed_ms": 17.034,
+              "peak_rss_kib": 3056
+            },
+            {
+              "elapsed_ms": 17.588,
+              "peak_rss_kib": 3052
+            },
+            {
+              "elapsed_ms": 18.28,
+              "peak_rss_kib": 3056
+            },
+            {
+              "elapsed_ms": 17.591,
+              "peak_rss_kib": 3052
+            },
+            {
+              "elapsed_ms": 17.613,
+              "peak_rss_kib": 3052
+            }
+          ],
+          "stdev_elapsed_ms": 0.305,
+          "version": "go version go1.26.2 linux/amd64"
+        },
+        {
+          "checksum": "3000000",
+          "command": [
+            "python3",
+            "python.py",
+            "3000000"
+          ],
+          "id": "service-logging-filtered-eight-fields-python",
+          "language": "Python",
+          "mean_elapsed_ms": 447.815,
+          "mean_peak_rss_kib": 13352,
+          "relative_rss": 1.796,
+          "relative_time": 5.856,
+          "samples": [
+            {
+              "elapsed_ms": 453.381,
+              "peak_rss_kib": 13348
+            },
+            {
+              "elapsed_ms": 447.489,
+              "peak_rss_kib": 13348
+            },
+            {
+              "elapsed_ms": 446.521,
+              "peak_rss_kib": 13372
+            },
+            {
+              "elapsed_ms": 460.303,
+              "peak_rss_kib": 13352
+            },
+            {
+              "elapsed_ms": 443.384,
+              "peak_rss_kib": 13348
+            },
+            {
+              "elapsed_ms": 445.624,
+              "peak_rss_kib": 13368
+            },
+            {
+              "elapsed_ms": 447.314,
+              "peak_rss_kib": 13348
+            },
+            {
+              "elapsed_ms": 446.11,
+              "peak_rss_kib": 13336
+            },
+            {
+              "elapsed_ms": 444.344,
+              "peak_rss_kib": 13352
+            },
+            {
+              "elapsed_ms": 443.684,
+              "peak_rss_kib": 13344
+            }
+          ],
+          "stdev_elapsed_ms": 5.222,
+          "version": "Python 3.13.12"
+        }
+      ],
+      "manifest": "benchmarks/cross/cases/service/manifest.json",
+      "package": "logging",
+      "title": "Filter a structured log call with eight string fields",
+      "unit": "calls",
+      "work": 3000000
+    },
+    {
+      "chart_label": "JSON parsing",
+      "equivalence": "Each implementation constructs the same compact ASCII document [0,...,1999] once, then parses the whole document into its ordinary in-memory representation once per repetition. The checksum counts successfully parsed non-empty arrays.",
+      "id": "service-json-parse-2k",
+      "implementations": [
+        {
+          "checksum": "400",
+          "command": [
+            "build/koka",
+            "400"
+          ],
+          "id": "service-json-parse-2k-koka",
+          "language": "Koka",
+          "mean_elapsed_ms": 364.24,
+          "mean_peak_rss_kib": 7688,
+          "relative_rss": 1.0,
+          "relative_time": 1.0,
+          "samples": [
+            {
+              "elapsed_ms": 368.163,
+              "peak_rss_kib": 7728
+            },
+            {
+              "elapsed_ms": 361.446,
+              "peak_rss_kib": 7584
+            },
+            {
+              "elapsed_ms": 365.169,
+              "peak_rss_kib": 7716
+            },
+            {
+              "elapsed_ms": 364.268,
+              "peak_rss_kib": 7708
+            },
+            {
+              "elapsed_ms": 360.596,
+              "peak_rss_kib": 7616
+            },
+            {
+              "elapsed_ms": 365.595,
+              "peak_rss_kib": 7744
+            },
+            {
+              "elapsed_ms": 366.493,
+              "peak_rss_kib": 7712
+            },
+            {
+              "elapsed_ms": 367.497,
+              "peak_rss_kib": 7700
+            },
+            {
+              "elapsed_ms": 361.837,
+              "peak_rss_kib": 7704
+            },
+            {
+              "elapsed_ms": 361.334,
+              "peak_rss_kib": 7668
+            }
+          ],
+          "stdev_elapsed_ms": 2.77,
+          "version": "Koka 3.2.7, 00:00:00 Jan  1 1980 (ghc release version)"
+        },
+        {
+          "checksum": "400",
+          "command": [
+            "build/go",
+            "400"
+          ],
+          "id": "service-json-parse-2k-go",
+          "language": "Go",
+          "mean_elapsed_ms": 73.886,
+          "mean_peak_rss_kib": 9145,
+          "relative_rss": 1.19,
+          "relative_time": 0.203,
+          "samples": [
+            {
+              "elapsed_ms": 72.072,
+              "peak_rss_kib": 8528
+            },
+            {
+              "elapsed_ms": 74.157,
+              "peak_rss_kib": 9328
+            },
+            {
+              "elapsed_ms": 72.867,
+              "peak_rss_kib": 8516
+            },
+            {
+              "elapsed_ms": 74.348,
+              "peak_rss_kib": 9436
+            },
+            {
+              "elapsed_ms": 74.883,
+              "peak_rss_kib": 9648
+            },
+            {
+              "elapsed_ms": 74.257,
+              "peak_rss_kib": 9288
+            },
+            {
+              "elapsed_ms": 74.812,
+              "peak_rss_kib": 9172
+            },
+            {
+              "elapsed_ms": 74.687,
+              "peak_rss_kib": 9420
+            },
+            {
+              "elapsed_ms": 73.482,
+              "peak_rss_kib": 8708
+            },
+            {
+              "elapsed_ms": 73.3,
+              "peak_rss_kib": 9404
+            }
+          ],
+          "stdev_elapsed_ms": 0.928,
+          "version": "go version go1.26.2 linux/amd64"
+        },
+        {
+          "checksum": "400",
+          "command": [
+            "python3",
+            "python.py",
+            "400"
+          ],
+          "id": "service-json-parse-2k-python",
+          "language": "Python",
+          "mean_elapsed_ms": 59.727,
+          "mean_peak_rss_kib": 12363,
+          "relative_rss": 1.608,
+          "relative_time": 0.164,
+          "samples": [
+            {
+              "elapsed_ms": 58.568,
+              "peak_rss_kib": 12352
+            },
+            {
+              "elapsed_ms": 59.171,
+              "peak_rss_kib": 12348
+            },
+            {
+              "elapsed_ms": 60.113,
+              "peak_rss_kib": 12472
+            },
+            {
+              "elapsed_ms": 61.666,
+              "peak_rss_kib": 12348
+            },
+            {
+              "elapsed_ms": 61.644,
+              "peak_rss_kib": 12348
+            },
+            {
+              "elapsed_ms": 59.415,
+              "peak_rss_kib": 12344
+            },
+            {
+              "elapsed_ms": 60.072,
+              "peak_rss_kib": 12340
+            },
+            {
+              "elapsed_ms": 57.636,
+              "peak_rss_kib": 12384
+            },
+            {
+              "elapsed_ms": 60.594,
+              "peak_rss_kib": 12348
+            },
+            {
+              "elapsed_ms": 58.394,
+              "peak_rss_kib": 12344
+            }
+          ],
+          "stdev_elapsed_ms": 1.348,
+          "version": "Python 3.13.12"
+        }
+      ],
+      "manifest": "benchmarks/cross/cases/service/manifest.json",
+      "package": "json",
+      "title": "Parse a compact JSON array of 2,000 integers",
+      "unit": "documents",
+      "work": 400
+    },
+    {
+      "chart_label": "enabled structured logging",
+      "equivalence": "Each implementation constructs the same eight string fields and logger once, then formats an enabled INFO record named 'request' once per repetition through an in-memory counting sink. The checksum is the number of non-empty records delivered to the sink.",
+      "id": "service-logging-enabled-eight-fields",
+      "implementations": [
+        {
+          "checksum": "40000",
+          "command": [
+            "build/koka",
+            "40000"
+          ],
+          "id": "service-logging-enabled-eight-fields-koka",
+          "language": "Koka",
+          "mean_elapsed_ms": 96.528,
+          "mean_peak_rss_kib": 7446,
+          "relative_rss": 1.0,
+          "relative_time": 1.0,
+          "samples": [
+            {
+              "elapsed_ms": 95.431,
+              "peak_rss_kib": 7580
+            },
+            {
+              "elapsed_ms": 96.718,
+              "peak_rss_kib": 7552
+            },
+            {
+              "elapsed_ms": 103.311,
+              "peak_rss_kib": 7384
+            },
+            {
+              "elapsed_ms": 94.164,
+              "peak_rss_kib": 7380
+            },
+            {
+              "elapsed_ms": 95.694,
+              "peak_rss_kib": 7472
+            },
+            {
+              "elapsed_ms": 94.678,
+              "peak_rss_kib": 7380
+            },
+            {
+              "elapsed_ms": 95.986,
+              "peak_rss_kib": 7400
+            },
+            {
+              "elapsed_ms": 98.588,
+              "peak_rss_kib": 7480
+            },
+            {
+              "elapsed_ms": 95.575,
+              "peak_rss_kib": 7412
+            },
+            {
+              "elapsed_ms": 95.139,
+              "peak_rss_kib": 7420
+            }
+          ],
+          "stdev_elapsed_ms": 2.674,
+          "version": "Koka 3.2.7, 00:00:00 Jan  1 1980 (ghc release version)"
+        },
+        {
+          "checksum": "40000",
+          "command": [
+            "build/go",
+            "40000"
+          ],
+          "id": "service-logging-enabled-eight-fields-go",
+          "language": "Go",
+          "mean_elapsed_ms": 41.092,
+          "mean_peak_rss_kib": 7459,
+          "relative_rss": 1.002,
+          "relative_time": 0.426,
+          "samples": [
+            {
+              "elapsed_ms": 40.456,
+              "peak_rss_kib": 7420
+            },
+            {
+              "elapsed_ms": 41.422,
+              "peak_rss_kib": 7532
+            },
+            {
+              "elapsed_ms": 41.462,
+              "peak_rss_kib": 7392
+            },
+            {
+              "elapsed_ms": 40.2,
+              "peak_rss_kib": 7492
+            },
+            {
+              "elapsed_ms": 40.957,
+              "peak_rss_kib": 7508
+            },
+            {
+              "elapsed_ms": 42.665,
+              "peak_rss_kib": 7296
+            },
+            {
+              "elapsed_ms": 41.077,
+              "peak_rss_kib": 7276
+            },
+            {
+              "elapsed_ms": 40.906,
+              "peak_rss_kib": 7896
+            },
+            {
+              "elapsed_ms": 41.52,
+              "peak_rss_kib": 7416
+            },
+            {
+              "elapsed_ms": 40.256,
+              "peak_rss_kib": 7360
+            }
+          ],
+          "stdev_elapsed_ms": 0.735,
+          "version": "go version go1.26.2 linux/amd64"
+        },
+        {
+          "checksum": "40000",
+          "command": [
+            "python3",
+            "python.py",
+            "40000"
+          ],
+          "id": "service-logging-enabled-eight-fields-python",
+          "language": "Python",
+          "mean_elapsed_ms": 469.766,
+          "mean_peak_rss_kib": 13575,
+          "relative_rss": 1.823,
+          "relative_time": 4.867,
+          "samples": [
+            {
+              "elapsed_ms": 462.612,
+              "peak_rss_kib": 13564
+            },
+            {
+              "elapsed_ms": 471.245,
+              "peak_rss_kib": 13628
+            },
+            {
+              "elapsed_ms": 463.741,
+              "peak_rss_kib": 13564
+            },
+            {
+              "elapsed_ms": 471.655,
+              "peak_rss_kib": 13576
+            },
+            {
+              "elapsed_ms": 485.999,
+              "peak_rss_kib": 13568
+            },
+            {
+              "elapsed_ms": 462.594,
+              "peak_rss_kib": 13564
+            },
+            {
+              "elapsed_ms": 469.323,
+              "peak_rss_kib": 13560
+            },
+            {
+              "elapsed_ms": 475.507,
+              "peak_rss_kib": 13576
+            },
+            {
+              "elapsed_ms": 468.477,
+              "peak_rss_kib": 13584
+            },
+            {
+              "elapsed_ms": 466.508,
+              "peak_rss_kib": 13564
+            }
+          ],
+          "stdev_elapsed_ms": 7.099,
+          "version": "Python 3.13.12"
+        }
+      ],
+      "manifest": "benchmarks/cross/cases/service/manifest.json",
+      "package": "logging",
+      "title": "Format an enabled structured log record with eight string fields",
+      "unit": "records",
+      "work": 40000
+    },
+    {
+      "chart_label": "HTTP parse and render",
+      "equivalence": "Each repetition parses the same complete HTTP/1.1 POST request with four headers, query text, and an 11-byte body, then renders a fresh 201 response with two application headers and an 8-byte body to an in-memory buffer. The checksum combines the parsed method/path/query/body lengths, status, response-body length, and a non-empty-render marker.",
+      "id": "service-http-parse-render",
+      "implementations": [
+        {
+          "checksum": "12150000",
+          "command": [
+            "build/koka",
+            "50000"
+          ],
+          "id": "service-http-parse-render-koka",
+          "language": "Koka",
+          "mean_elapsed_ms": 245.227,
+          "mean_peak_rss_kib": 7436,
+          "relative_rss": 1.0,
+          "relative_time": 1.0,
+          "samples": [
+            {
+              "elapsed_ms": 246.613,
+              "peak_rss_kib": 7424
+            },
+            {
+              "elapsed_ms": 245.441,
+              "peak_rss_kib": 7476
+            },
+            {
+              "elapsed_ms": 244.471,
+              "peak_rss_kib": 7540
+            },
+            {
+              "elapsed_ms": 252.192,
+              "peak_rss_kib": 7448
+            },
+            {
+              "elapsed_ms": 243.645,
+              "peak_rss_kib": 7460
+            },
+            {
+              "elapsed_ms": 241.818,
+              "peak_rss_kib": 7436
+            },
+            {
+              "elapsed_ms": 244.972,
+              "peak_rss_kib": 7384
+            },
+            {
+              "elapsed_ms": 248.509,
+              "peak_rss_kib": 7348
+            },
+            {
+              "elapsed_ms": 243.316,
+              "peak_rss_kib": 7388
+            },
+            {
+              "elapsed_ms": 241.29,
+              "peak_rss_kib": 7452
+            }
+          ],
+          "stdev_elapsed_ms": 3.252,
+          "version": "Koka 3.2.7, 00:00:00 Jan  1 1980 (ghc release version)"
+        },
+        {
+          "checksum": "12150000",
+          "command": [
+            "build/go",
+            "50000"
+          ],
+          "id": "service-http-parse-render-go",
+          "language": "Go",
+          "mean_elapsed_ms": 198.914,
+          "mean_peak_rss_kib": 14236,
+          "relative_rss": 1.914,
+          "relative_time": 0.811,
+          "samples": [
+            {
+              "elapsed_ms": 202.676,
+              "peak_rss_kib": 14700
+            },
+            {
+              "elapsed_ms": 200.541,
+              "peak_rss_kib": 15316
+            },
+            {
+              "elapsed_ms": 190.538,
+              "peak_rss_kib": 14328
+            },
+            {
+              "elapsed_ms": 197.011,
+              "peak_rss_kib": 13956
+            },
+            {
+              "elapsed_ms": 195.529,
+              "peak_rss_kib": 14712
+            },
+            {
+              "elapsed_ms": 201.581,
+              "peak_rss_kib": 13604
+            },
+            {
+              "elapsed_ms": 198.749,
+              "peak_rss_kib": 13840
+            },
+            {
+              "elapsed_ms": 201.33,
+              "peak_rss_kib": 14076
+            },
+            {
+              "elapsed_ms": 203.327,
+              "peak_rss_kib": 13924
+            },
+            {
+              "elapsed_ms": 197.856,
+              "peak_rss_kib": 13900
+            }
+          ],
+          "stdev_elapsed_ms": 3.882,
+          "version": "go version go1.26.2 linux/amd64"
+        }
+      ],
+      "manifest": "benchmarks/cross/cases/service/manifest.json",
+      "package": "http",
+      "title": "Parse an HTTP request and render a response",
+      "unit": "exchanges",
+      "work": 50000
+    },
+    {
+      "chart_label": "bounded channel",
+      "equivalence": "One producer sends integers 0 through work-1 through a capacity-256 channel while one consumer receives and sums them; the producer then closes or signals completion and both tasks are joined. The checksum is the exact integer sum work*(work-1)/2.",
+      "id": "service-runtime-channel",
+      "implementations": [
+        {
+          "checksum": "79999800000",
+          "command": [
+            "build/koka",
+            "400000"
+          ],
+          "id": "service-runtime-channel-koka",
+          "language": "Koka",
+          "mean_elapsed_ms": 51.367,
+          "mean_peak_rss_kib": 8034,
+          "relative_rss": 1.0,
+          "relative_time": 1.0,
+          "samples": [
+            {
+              "elapsed_ms": 50.966,
+              "peak_rss_kib": 8020
+            },
+            {
+              "elapsed_ms": 50.49,
+              "peak_rss_kib": 8088
+            },
+            {
+              "elapsed_ms": 51.968,
+              "peak_rss_kib": 8148
+            },
+            {
+              "elapsed_ms": 50.394,
+              "peak_rss_kib": 8004
+            },
+            {
+              "elapsed_ms": 51.53,
+              "peak_rss_kib": 8020
+            },
+            {
+              "elapsed_ms": 52.26,
+              "peak_rss_kib": 7988
+            },
+            {
+              "elapsed_ms": 52.64,
+              "peak_rss_kib": 8036
+            },
+            {
+              "elapsed_ms": 51.632,
+              "peak_rss_kib": 8032
+            },
+            {
+              "elapsed_ms": 50.113,
+              "peak_rss_kib": 8000
+            },
+            {
+              "elapsed_ms": 51.679,
+              "peak_rss_kib": 8008
+            }
+          ],
+          "stdev_elapsed_ms": 0.845,
+          "version": "Koka 3.2.7, 00:00:00 Jan  1 1980 (ghc release version)"
+        },
+        {
+          "checksum": "79999800000",
+          "command": [
+            "build/go",
+            "400000"
+          ],
+          "id": "service-runtime-channel-go",
+          "language": "Go",
+          "mean_elapsed_ms": 12.94,
+          "mean_peak_rss_kib": 2667,
+          "relative_rss": 0.332,
+          "relative_time": 0.252,
+          "samples": [
+            {
+              "elapsed_ms": 12.836,
+              "peak_rss_kib": 2648
+            },
+            {
+              "elapsed_ms": 13.524,
+              "peak_rss_kib": 2712
+            },
+            {
+              "elapsed_ms": 12.33,
+              "peak_rss_kib": 2720
+            },
+            {
+              "elapsed_ms": 12.8,
+              "peak_rss_kib": 2652
+            },
+            {
+              "elapsed_ms": 12.958,
+              "peak_rss_kib": 2648
+            },
+            {
+              "elapsed_ms": 13.462,
+              "peak_rss_kib": 2660
+            },
+            {
+              "elapsed_ms": 12.802,
+              "peak_rss_kib": 2652
+            },
+            {
+              "elapsed_ms": 12.933,
+              "peak_rss_kib": 2664
+            },
+            {
+              "elapsed_ms": 12.899,
+              "peak_rss_kib": 2660
+            },
+            {
+              "elapsed_ms": 12.851,
+              "peak_rss_kib": 2652
+            }
+          ],
+          "stdev_elapsed_ms": 0.341,
+          "version": "go version go1.26.2 linux/amd64"
+        },
+        {
+          "checksum": "79999800000",
+          "command": [
+            "python3",
+            "python.py",
+            "400000"
+          ],
+          "id": "service-runtime-channel-python",
+          "language": "Python",
+          "mean_elapsed_ms": 516.319,
+          "mean_peak_rss_kib": 12108,
+          "relative_rss": 1.507,
+          "relative_time": 10.052,
+          "samples": [
+            {
+              "elapsed_ms": 513.74,
+              "peak_rss_kib": 12092
+            },
+            {
+              "elapsed_ms": 517.814,
+              "peak_rss_kib": 12136
+            },
+            {
+              "elapsed_ms": 515.465,
+              "peak_rss_kib": 12108
+            },
+            {
+              "elapsed_ms": 513.073,
+              "peak_rss_kib": 12116
+            },
+            {
+              "elapsed_ms": 522.201,
+              "peak_rss_kib": 12088
+            },
+            {
+              "elapsed_ms": 521.676,
+              "peak_rss_kib": 12152
+            },
+            {
+              "elapsed_ms": 520.783,
+              "peak_rss_kib": 12092
+            },
+            {
+              "elapsed_ms": 509.786,
+              "peak_rss_kib": 12092
+            },
+            {
+              "elapsed_ms": 514.537,
+              "peak_rss_kib": 12092
+            },
+            {
+              "elapsed_ms": 514.11,
+              "peak_rss_kib": 12112
+            }
+          ],
+          "stdev_elapsed_ms": 4.138,
+          "version": "Python 3.13.12"
+        }
+      ],
+      "manifest": "benchmarks/cross/cases/service/manifest.json",
+      "package": "runtime",
+      "title": "Send and receive integers through a bounded channel",
+      "unit": "handoffs",
+      "work": 400000
+    },
+    {
+      "chart_label": "SQLite bound inserts",
+      "equivalence": "Create the same in-memory table, explicitly begin one transaction, insert {work} rows through one prepared statement with bound integer i and text 'row-i', commit, then print exactly: rows=N sum_i=S text_bytes=B. N must equal work, S is sum(i), and B is sum of UTF-8 text lengths.",
+      "id": "storage-sqlite-bound-insert",
+      "implementations": [
+        {
+          "checksum": "rows=100000 sum_i=4999950000 text_bytes=888890",
+          "command": [
+            "build/sqlite_koka",
+            "100000"
+          ],
+          "id": "storage-sqlite-koka",
+          "language": "Koka",
+          "mean_elapsed_ms": 70.321,
+          "mean_peak_rss_kib": 11476,
+          "relative_rss": 1.0,
+          "relative_time": 1.0,
+          "samples": [
+            {
+              "elapsed_ms": 71.27,
+              "peak_rss_kib": 11468
+            },
+            {
+              "elapsed_ms": 70.518,
+              "peak_rss_kib": 11456
+            },
+            {
+              "elapsed_ms": 70.541,
+              "peak_rss_kib": 11444
+            },
+            {
+              "elapsed_ms": 69.724,
+              "peak_rss_kib": 11512
+            },
+            {
+              "elapsed_ms": 70.508,
+              "peak_rss_kib": 11484
+            },
+            {
+              "elapsed_ms": 69.273,
+              "peak_rss_kib": 11488
+            },
+            {
+              "elapsed_ms": 71.592,
+              "peak_rss_kib": 11484
+            },
+            {
+              "elapsed_ms": 71.284,
+              "peak_rss_kib": 11500
+            },
+            {
+              "elapsed_ms": 69.295,
+              "peak_rss_kib": 11492
+            },
+            {
+              "elapsed_ms": 69.204,
+              "peak_rss_kib": 11432
+            }
+          ],
+          "stdev_elapsed_ms": 0.902,
+          "version": "Koka 3.2.7, 00:00:00 Jan  1 1980 (ghc release version)"
+        },
+        {
+          "checksum": "rows=100000 sum_i=4999950000 text_bytes=888890",
+          "command": [
+            "python3",
+            "sqlite_python.py",
+            "100000"
+          ],
+          "id": "storage-sqlite-python",
+          "language": "Python",
+          "mean_elapsed_ms": 108.55,
+          "mean_peak_rss_kib": 15732,
+          "relative_rss": 1.371,
+          "relative_time": 1.544,
+          "samples": [
+            {
+              "elapsed_ms": 109.971,
+              "peak_rss_kib": 15752
+            },
+            {
+              "elapsed_ms": 110.895,
+              "peak_rss_kib": 15712
+            },
+            {
+              "elapsed_ms": 110.276,
+              "peak_rss_kib": 15752
+            },
+            {
+              "elapsed_ms": 107.86,
+              "peak_rss_kib": 15712
+            },
+            {
+              "elapsed_ms": 110.754,
+              "peak_rss_kib": 15768
+            },
+            {
+              "elapsed_ms": 106.065,
+              "peak_rss_kib": 15744
+            },
+            {
+              "elapsed_ms": 107.929,
+              "peak_rss_kib": 15736
+            },
+            {
+              "elapsed_ms": 107.286,
+              "peak_rss_kib": 15716
+            },
+            {
+              "elapsed_ms": 107.81,
+              "peak_rss_kib": 15708
+            },
+            {
+              "elapsed_ms": 106.65,
+              "peak_rss_kib": 15716
+            }
+          ],
+          "stdev_elapsed_ms": 1.768,
+          "version": "3.13.12 3.51.2"
+        }
+      ],
+      "manifest": "benchmarks/cross/cases/storage/manifest.json",
+      "package": "sqlite",
+      "title": "SQLite in-memory bound insert in one prepared transaction",
+      "unit": "rows",
+      "work": 100000
+    },
+    {
+      "chart_label": "64 MiB file streaming",
+      "equivalence": "Build setup creates build/storage_fixture.bin as exactly 64 MiB of the repeated byte sequence 0..255. Each timed pass opens it and reads to EOF in requested 65536-byte chunks. A low-overhead deterministic checksum adds each chunk's length, first byte, and last byte so validation does not dominate I/O. Print exactly: bytes=67108864 reps=R checksum=C. File generation is build-time setup and excluded from run timing.",
+      "id": "storage-stream-64m-64k",
+      "implementations": [
+        {
+          "checksum": "bytes=67108864 reps=4 checksum=269479936",
+          "command": [
+            "build/stream_koka",
+            "4",
+            "build/storage_fixture.bin"
+          ],
+          "id": "storage-stream-koka",
+          "language": "Koka",
+          "mean_elapsed_ms": 30.583,
+          "mean_peak_rss_kib": 7614,
+          "relative_rss": 1.0,
+          "relative_time": 1.0,
+          "samples": [
+            {
+              "elapsed_ms": 30.784,
+              "peak_rss_kib": 7580
+            },
+            {
+              "elapsed_ms": 31.886,
+              "peak_rss_kib": 7588
+            },
+            {
+              "elapsed_ms": 30.725,
+              "peak_rss_kib": 7608
+            },
+            {
+              "elapsed_ms": 30.6,
+              "peak_rss_kib": 7744
+            },
+            {
+              "elapsed_ms": 30.132,
+              "peak_rss_kib": 7600
+            },
+            {
+              "elapsed_ms": 28.89,
+              "peak_rss_kib": 7624
+            },
+            {
+              "elapsed_ms": 27.733,
+              "peak_rss_kib": 7628
+            },
+            {
+              "elapsed_ms": 30.863,
+              "peak_rss_kib": 7484
+            },
+            {
+              "elapsed_ms": 32.441,
+              "peak_rss_kib": 7464
+            },
+            {
+              "elapsed_ms": 31.772,
+              "peak_rss_kib": 7816
+            }
+          ],
+          "stdev_elapsed_ms": 1.41,
+          "version": "Koka 3.2.7, 00:00:00 Jan  1 1980 (ghc release version)"
+        },
+        {
+          "checksum": "bytes=67108864 reps=4 checksum=269479936",
+          "command": [
+            "build/stream_go",
+            "4",
+            "build/storage_fixture.bin"
+          ],
+          "id": "storage-stream-go",
+          "language": "Go",
+          "mean_elapsed_ms": 26.685,
+          "mean_peak_rss_kib": 2973,
+          "relative_rss": 0.39,
+          "relative_time": 0.873,
+          "samples": [
+            {
+              "elapsed_ms": 24.348,
+              "peak_rss_kib": 3004
+            },
+            {
+              "elapsed_ms": 24.695,
+              "peak_rss_kib": 3008
+            },
+            {
+              "elapsed_ms": 27.687,
+              "peak_rss_kib": 2952
+            },
+            {
+              "elapsed_ms": 25.422,
+              "peak_rss_kib": 2948
+            },
+            {
+              "elapsed_ms": 25.987,
+              "peak_rss_kib": 2948
+            },
+            {
+              "elapsed_ms": 28.87,
+              "peak_rss_kib": 2948
+            },
+            {
+              "elapsed_ms": 27.79,
+              "peak_rss_kib": 3008
+            },
+            {
+              "elapsed_ms": 26.585,
+              "peak_rss_kib": 2956
+            },
+            {
+              "elapsed_ms": 28.831,
+              "peak_rss_kib": 3012
+            },
+            {
+              "elapsed_ms": 26.638,
+              "peak_rss_kib": 2948
+            }
+          ],
+          "stdev_elapsed_ms": 1.603,
+          "version": "go version go1.26.2 linux/amd64"
+        },
+        {
+          "checksum": "bytes=67108864 reps=4 checksum=269479936",
+          "command": [
+            "python3",
+            "stream_python.py",
+            "4",
+            "build/storage_fixture.bin"
+          ],
+          "id": "storage-stream-python",
+          "language": "Python",
+          "mean_elapsed_ms": 43.412,
+          "mean_peak_rss_kib": 11748,
+          "relative_rss": 1.543,
+          "relative_time": 1.419,
+          "samples": [
+            {
+              "elapsed_ms": 43.402,
+              "peak_rss_kib": 11772
+            },
+            {
+              "elapsed_ms": 43.615,
+              "peak_rss_kib": 11744
+            },
+            {
+              "elapsed_ms": 43.176,
+              "peak_rss_kib": 11788
+            },
+            {
+              "elapsed_ms": 43.815,
+              "peak_rss_kib": 11744
+            },
+            {
+              "elapsed_ms": 43.424,
+              "peak_rss_kib": 11748
+            },
+            {
+              "elapsed_ms": 42.218,
+              "peak_rss_kib": 11748
+            },
+            {
+              "elapsed_ms": 44.783,
+              "peak_rss_kib": 11740
+            },
+            {
+              "elapsed_ms": 43.298,
+              "peak_rss_kib": 11764
+            },
+            {
+              "elapsed_ms": 43.821,
+              "peak_rss_kib": 11692
+            },
+            {
+              "elapsed_ms": 42.564,
+              "peak_rss_kib": 11740
+            }
+          ],
+          "stdev_elapsed_ms": 0.704,
+          "version": "Python 3.13.12"
+        },
+        {
+          "checksum": "bytes=67108864 reps=4 checksum=269479936",
+          "command": [
+            "build/stream_cpp",
+            "4",
+            "build/storage_fixture.bin"
+          ],
+          "id": "storage-stream-cpp",
+          "language": "C++",
+          "mean_elapsed_ms": 25.749,
+          "mean_peak_rss_kib": 3827,
+          "relative_rss": 0.503,
+          "relative_time": 0.842,
+          "samples": [
+            {
+              "elapsed_ms": 24.658,
+              "peak_rss_kib": 3828
+            },
+            {
+              "elapsed_ms": 25.287,
+              "peak_rss_kib": 3800
+            },
+            {
+              "elapsed_ms": 24.179,
+              "peak_rss_kib": 3828
+            },
+            {
+              "elapsed_ms": 27.164,
+              "peak_rss_kib": 3780
+            },
+            {
+              "elapsed_ms": 26.596,
+              "peak_rss_kib": 3828
+            },
+            {
+              "elapsed_ms": 25.574,
+              "peak_rss_kib": 4016
+            },
+            {
+              "elapsed_ms": 24.857,
+              "peak_rss_kib": 3788
+            },
+            {
+              "elapsed_ms": 27.799,
+              "peak_rss_kib": 3796
+            },
+            {
+              "elapsed_ms": 24.303,
+              "peak_rss_kib": 3828
+            },
+            {
+              "elapsed_ms": 27.073,
+              "peak_rss_kib": 3780
+            }
+          ],
+          "stdev_elapsed_ms": 1.311,
+          "version": "g++ (GCC) 15.2.0"
+        }
+      ],
+      "manifest": "benchmarks/cross/cases/storage/manifest.json",
+      "package": "fileio",
+      "title": "Stream a generated 64 MiB file in 64 KiB chunks",
+      "unit": "passes",
+      "work": 4
+    },
+    {
+      "chart_label": "SQLite indexed lookups",
+      "equivalence": "Build setup creates the same 100000-row SQLite database with integer primary key i and text 'row-i'. The timed program opens it, prepares SELECT i,text_value WHERE i=? once, and performs {work} bound lookups in deterministic key order (lookup_index * 48271) % 100000. Print exactly: lookups=N sum_i=S text_bytes=B. Database creation is excluded from run timing.",
+      "id": "storage-sqlite-indexed-lookup",
+      "implementations": [
+        {
+          "checksum": "lookups=50000 sum_i=2500125000 text_bytes=444444",
+          "command": [
+            "build/lookup_koka",
+            "50000",
+            "build/lookup_fixture.db"
+          ],
+          "id": "storage-sqlite-lookup-koka",
+          "language": "Koka",
+          "mean_elapsed_ms": 356.645,
+          "mean_peak_rss_kib": 11089,
+          "relative_rss": 1.0,
+          "relative_time": 1.0,
+          "samples": [
+            {
+              "elapsed_ms": 350.484,
+              "peak_rss_kib": 11184
+            },
+            {
+              "elapsed_ms": 363.477,
+              "peak_rss_kib": 11004
+            },
+            {
+              "elapsed_ms": 358.597,
+              "peak_rss_kib": 11076
+            },
+            {
+              "elapsed_ms": 356.053,
+              "peak_rss_kib": 11036
+            },
+            {
+              "elapsed_ms": 356.996,
+              "peak_rss_kib": 11124
+            },
+            {
+              "elapsed_ms": 358.628,
+              "peak_rss_kib": 11136
+            },
+            {
+              "elapsed_ms": 354.123,
+              "peak_rss_kib": 11088
+            },
+            {
+              "elapsed_ms": 352.363,
+              "peak_rss_kib": 11060
+            },
+            {
+              "elapsed_ms": 359.823,
+              "peak_rss_kib": 11196
+            },
+            {
+              "elapsed_ms": 355.904,
+              "peak_rss_kib": 10988
+            }
+          ],
+          "stdev_elapsed_ms": 3.774,
+          "version": "Koka 3.2.7, 00:00:00 Jan  1 1980 (ghc release version)"
+        },
+        {
+          "checksum": "lookups=50000 sum_i=2500125000 text_bytes=444444",
+          "command": [
+            "python3",
+            "lookup_python.py",
+            "50000",
+            "build/lookup_fixture.db"
+          ],
+          "id": "storage-sqlite-lookup-python",
+          "language": "Python",
+          "mean_elapsed_ms": 415.034,
+          "mean_peak_rss_kib": 15340,
+          "relative_rss": 1.383,
+          "relative_time": 1.164,
+          "samples": [
+            {
+              "elapsed_ms": 409.974,
+              "peak_rss_kib": 15368
+            },
+            {
+              "elapsed_ms": 408.546,
+              "peak_rss_kib": 15328
+            },
+            {
+              "elapsed_ms": 424.242,
+              "peak_rss_kib": 15356
+            },
+            {
+              "elapsed_ms": 419.121,
+              "peak_rss_kib": 15320
+            },
+            {
+              "elapsed_ms": 418.959,
+              "peak_rss_kib": 15380
+            },
+            {
+              "elapsed_ms": 424.039,
+              "peak_rss_kib": 15332
+            },
+            {
+              "elapsed_ms": 409.705,
+              "peak_rss_kib": 15328
+            },
+            {
+              "elapsed_ms": 411.985,
+              "peak_rss_kib": 15336
+            },
+            {
+              "elapsed_ms": 416.99,
+              "peak_rss_kib": 15320
+            },
+            {
+              "elapsed_ms": 406.781,
+              "peak_rss_kib": 15336
+            }
+          ],
+          "stdev_elapsed_ms": 6.458,
+          "version": "3.13.12 3.51.2"
+        }
+      ],
+      "manifest": "benchmarks/cross/cases/storage/manifest.json",
+      "package": "sqlite",
+      "title": "SQLite prepared indexed point lookups",
+      "unit": "lookups",
+      "work": 50000
+    },
+    {
+      "chart_label": "64 MiB whole-file read",
+      "equivalence": "Build setup creates build/storage_fixture.bin as exactly 64 MiB of repeated bytes 0..255. Each timed repetition opens the file and reads it completely into one in-memory byte sequence. A low-overhead deterministic checksum adds the sequence length, first byte, and last byte so validation does not dominate allocation and I/O. Print exactly: bytes=67108864 reps=R checksum=C. File generation is excluded from run timing.",
+      "id": "storage-read-whole-file",
+      "implementations": [
+        {
+          "checksum": "bytes=67108864 reps=4 checksum=268436476",
+          "command": [
+            "build/whole_read_koka",
+            "4",
+            "build/storage_fixture.bin"
+          ],
+          "id": "storage-whole-read-koka",
+          "language": "Koka",
+          "mean_elapsed_ms": 173.351,
+          "mean_peak_rss_kib": 140774,
+          "relative_rss": 1.0,
+          "relative_time": 1.0,
+          "samples": [
+            {
+              "elapsed_ms": 177.454,
+              "peak_rss_kib": 140712
+            },
+            {
+              "elapsed_ms": 174.895,
+              "peak_rss_kib": 140684
+            },
+            {
+              "elapsed_ms": 177.912,
+              "peak_rss_kib": 140828
+            },
+            {
+              "elapsed_ms": 176.563,
+              "peak_rss_kib": 140856
+            },
+            {
+              "elapsed_ms": 175.551,
+              "peak_rss_kib": 140856
+            },
+            {
+              "elapsed_ms": 171.449,
+              "peak_rss_kib": 140824
+            },
+            {
+              "elapsed_ms": 169.946,
+              "peak_rss_kib": 140872
+            },
+            {
+              "elapsed_ms": 176.052,
+              "peak_rss_kib": 140796
+            },
+            {
+              "elapsed_ms": 164.691,
+              "peak_rss_kib": 140664
+            },
+            {
+              "elapsed_ms": 169.001,
+              "peak_rss_kib": 140652
+            }
+          ],
+          "stdev_elapsed_ms": 4.367,
+          "version": "Koka 3.2.7, 00:00:00 Jan  1 1980 (ghc release version)"
+        },
+        {
+          "checksum": "bytes=67108864 reps=4 checksum=268436476",
+          "command": [
+            "build/whole_read_go",
+            "4",
+            "build/storage_fixture.bin"
+          ],
+          "id": "storage-whole-read-go",
+          "language": "Go",
+          "mean_elapsed_ms": 103.842,
+          "mean_peak_rss_kib": 136226,
+          "relative_rss": 0.968,
+          "relative_time": 0.599,
+          "samples": [
+            {
+              "elapsed_ms": 102.341,
+              "peak_rss_kib": 137108
+            },
+            {
+              "elapsed_ms": 102.637,
+              "peak_rss_kib": 136240
+            },
+            {
+              "elapsed_ms": 109.98,
+              "peak_rss_kib": 135408
+            },
+            {
+              "elapsed_ms": 103.243,
+              "peak_rss_kib": 135396
+            },
+            {
+              "elapsed_ms": 101.559,
+              "peak_rss_kib": 136196
+            },
+            {
+              "elapsed_ms": 102.827,
+              "peak_rss_kib": 135352
+            },
+            {
+              "elapsed_ms": 103.022,
+              "peak_rss_kib": 137160
+            },
+            {
+              "elapsed_ms": 103.617,
+              "peak_rss_kib": 137100
+            },
+            {
+              "elapsed_ms": 102.752,
+              "peak_rss_kib": 136588
+            },
+            {
+              "elapsed_ms": 106.441,
+              "peak_rss_kib": 135716
+            }
+          ],
+          "stdev_elapsed_ms": 2.509,
+          "version": "go version go1.26.2 linux/amd64"
+        },
+        {
+          "checksum": "bytes=67108864 reps=4 checksum=268436476",
+          "command": [
+            "python3",
+            "whole_read_python.py",
+            "4",
+            "build/storage_fixture.bin"
+          ],
+          "id": "storage-whole-read-python",
+          "language": "Python",
+          "mean_elapsed_ms": 160.326,
+          "mean_peak_rss_kib": 143504,
+          "relative_rss": 1.019,
+          "relative_time": 0.925,
+          "samples": [
+            {
+              "elapsed_ms": 163.12,
+              "peak_rss_kib": 143688
+            },
+            {
+              "elapsed_ms": 165.063,
+              "peak_rss_kib": 143596
+            },
+            {
+              "elapsed_ms": 160.775,
+              "peak_rss_kib": 143260
+            },
+            {
+              "elapsed_ms": 164.064,
+              "peak_rss_kib": 143696
+            },
+            {
+              "elapsed_ms": 158.876,
+              "peak_rss_kib": 143424
+            },
+            {
+              "elapsed_ms": 156.575,
+              "peak_rss_kib": 143276
+            },
+            {
+              "elapsed_ms": 157.914,
+              "peak_rss_kib": 143640
+            },
+            {
+              "elapsed_ms": 161.999,
+              "peak_rss_kib": 143256
+            },
+            {
+              "elapsed_ms": 157.924,
+              "peak_rss_kib": 143492
+            },
+            {
+              "elapsed_ms": 156.946,
+              "peak_rss_kib": 143708
+            }
+          ],
+          "stdev_elapsed_ms": 3.098,
+          "version": "Python 3.13.12"
+        },
+        {
+          "checksum": "bytes=67108864 reps=4 checksum=268436476",
+          "command": [
+            "build/whole_read_cpp",
+            "4",
+            "build/storage_fixture.bin"
+          ],
+          "id": "storage-whole-read-cpp",
+          "language": "C++",
+          "mean_elapsed_ms": 208.879,
+          "mean_peak_rss_kib": 69296,
+          "relative_rss": 0.492,
+          "relative_time": 1.205,
+          "samples": [
+            {
+              "elapsed_ms": 207.101,
+              "peak_rss_kib": 69308
+            },
+            {
+              "elapsed_ms": 208.909,
+              "peak_rss_kib": 69292
+            },
+            {
+              "elapsed_ms": 207.892,
+              "peak_rss_kib": 69308
+            },
+            {
+              "elapsed_ms": 216.639,
+              "peak_rss_kib": 69260
+            },
+            {
+              "elapsed_ms": 206.972,
+              "peak_rss_kib": 69308
+            },
+            {
+              "elapsed_ms": 204.252,
+              "peak_rss_kib": 69308
+            },
+            {
+              "elapsed_ms": 203.155,
+              "peak_rss_kib": 69260
+            },
+            {
+              "elapsed_ms": 200.17,
+              "peak_rss_kib": 69308
+            },
+            {
+              "elapsed_ms": 216.177,
+              "peak_rss_kib": 69304
+            },
+            {
+              "elapsed_ms": 217.522,
+              "peak_rss_kib": 69308
+            }
+          ],
+          "stdev_elapsed_ms": 6.018,
+          "version": "g++ (GCC) 15.2.0"
+        }
+      ],
+      "manifest": "benchmarks/cross/cases/storage/manifest.json",
+      "package": "fileio",
+      "title": "Read a whole 64 MiB file",
+      "unit": "reads",
+      "work": 4
+    },
+    {
+      "chart_label": "scoped file lifetime",
+      "equivalence": "Build setup provides the same fixture. Each of {work} iterations acquires a fresh read-only file handle through the language's standard scoped lifetime idiom, reads exactly one byte, incorporates the byte count into a checksum, and releases before the next iteration. Koka uses resource/with-resource directly; C++ uses RAII, Go uses defer in a per-iteration function, and Python uses with. Print exactly: scopes=N bytes=N checksum=N.",
+      "id": "storage-resource-scope",
+      "implementations": [
+        {
+          "checksum": "scopes=20000 bytes=20000 checksum=20000",
+          "command": [
+            "build/scope_koka",
+            "20000",
+            "build/storage_fixture.bin"
+          ],
+          "id": "storage-scope-koka",
+          "language": "Koka",
+          "mean_elapsed_ms": 58.767,
+          "mean_peak_rss_kib": 7536,
+          "relative_rss": 1.0,
+          "relative_time": 1.0,
+          "samples": [
+            {
+              "elapsed_ms": 59.396,
+              "peak_rss_kib": 7588
+            },
+            {
+              "elapsed_ms": 59.691,
+              "peak_rss_kib": 7484
+            },
+            {
+              "elapsed_ms": 59.271,
+              "peak_rss_kib": 7416
+            },
+            {
+              "elapsed_ms": 58.066,
+              "peak_rss_kib": 7592
+            },
+            {
+              "elapsed_ms": 59.118,
+              "peak_rss_kib": 7556
+            },
+            {
+              "elapsed_ms": 56.645,
+              "peak_rss_kib": 7504
+            },
+            {
+              "elapsed_ms": 59.781,
+              "peak_rss_kib": 7540
+            },
+            {
+              "elapsed_ms": 59.084,
+              "peak_rss_kib": 7564
+            },
+            {
+              "elapsed_ms": 58.103,
+              "peak_rss_kib": 7540
+            },
+            {
+              "elapsed_ms": 58.516,
+              "peak_rss_kib": 7576
+            }
+          ],
+          "stdev_elapsed_ms": 0.958,
+          "version": "Koka 3.2.7, 00:00:00 Jan  1 1980 (ghc release version)"
+        },
+        {
+          "checksum": "scopes=20000 bytes=20000 checksum=20000",
+          "command": [
+            "build/scope_go",
+            "20000",
+            "build/storage_fixture.bin"
+          ],
+          "id": "storage-scope-go",
+          "language": "Go",
+          "mean_elapsed_ms": 105.832,
+          "mean_peak_rss_kib": 5495,
+          "relative_rss": 0.729,
+          "relative_time": 1.801,
+          "samples": [
+            {
+              "elapsed_ms": 104.634,
+              "peak_rss_kib": 5492
+            },
+            {
+              "elapsed_ms": 109.351,
+              "peak_rss_kib": 5508
+            },
+            {
+              "elapsed_ms": 105.948,
+              "peak_rss_kib": 5488
+            },
+            {
+              "elapsed_ms": 103.04,
+              "peak_rss_kib": 5512
+            },
+            {
+              "elapsed_ms": 102.296,
+              "peak_rss_kib": 5472
+            },
+            {
+              "elapsed_ms": 104.87,
+              "peak_rss_kib": 5488
+            },
+            {
+              "elapsed_ms": 106.127,
+              "peak_rss_kib": 5508
+            },
+            {
+              "elapsed_ms": 105.55,
+              "peak_rss_kib": 5488
+            },
+            {
+              "elapsed_ms": 107.073,
+              "peak_rss_kib": 5496
+            },
+            {
+              "elapsed_ms": 109.428,
+              "peak_rss_kib": 5496
+            }
+          ],
+          "stdev_elapsed_ms": 2.35,
+          "version": "go version go1.26.2 linux/amd64"
+        },
+        {
+          "checksum": "scopes=20000 bytes=20000 checksum=20000",
+          "command": [
+            "python3",
+            "scope_python.py",
+            "20000",
+            "build/storage_fixture.bin"
+          ],
+          "id": "storage-scope-python",
+          "language": "Python",
+          "mean_elapsed_ms": 155.032,
+          "mean_peak_rss_kib": 11569,
+          "relative_rss": 1.535,
+          "relative_time": 2.638,
+          "samples": [
+            {
+              "elapsed_ms": 159.456,
+              "peak_rss_kib": 11548
+            },
+            {
+              "elapsed_ms": 155.764,
+              "peak_rss_kib": 11596
+            },
+            {
+              "elapsed_ms": 153.761,
+              "peak_rss_kib": 11552
+            },
+            {
+              "elapsed_ms": 157.078,
+              "peak_rss_kib": 11548
+            },
+            {
+              "elapsed_ms": 151.328,
+              "peak_rss_kib": 11660
+            },
+            {
+              "elapsed_ms": 153.458,
+              "peak_rss_kib": 11560
+            },
+            {
+              "elapsed_ms": 155.627,
+              "peak_rss_kib": 11556
+            },
+            {
+              "elapsed_ms": 150.216,
+              "peak_rss_kib": 11552
+            },
+            {
+              "elapsed_ms": 156.385,
+              "peak_rss_kib": 11572
+            },
+            {
+              "elapsed_ms": 157.244,
+              "peak_rss_kib": 11548
+            }
+          ],
+          "stdev_elapsed_ms": 2.836,
+          "version": "Python 3.13.12"
+        },
+        {
+          "checksum": "scopes=20000 bytes=20000 checksum=20000",
+          "command": [
+            "build/scope_cpp",
+            "20000",
+            "build/storage_fixture.bin"
+          ],
+          "id": "storage-scope-cpp",
+          "language": "C++",
+          "mean_elapsed_ms": 68.487,
+          "mean_peak_rss_kib": 3790,
+          "relative_rss": 0.503,
+          "relative_time": 1.165,
+          "samples": [
+            {
+              "elapsed_ms": 69.8,
+              "peak_rss_kib": 3768
+            },
+            {
+              "elapsed_ms": 67.16,
+              "peak_rss_kib": 3768
+            },
+            {
+              "elapsed_ms": 68.55,
+              "peak_rss_kib": 3768
+            },
+            {
+              "elapsed_ms": 68.636,
+              "peak_rss_kib": 3736
+            },
+            {
+              "elapsed_ms": 69.674,
+              "peak_rss_kib": 3764
+            },
+            {
+              "elapsed_ms": 68.59,
+              "peak_rss_kib": 3728
+            },
+            {
+              "elapsed_ms": 66.883,
+              "peak_rss_kib": 3772
+            },
+            {
+              "elapsed_ms": 67.973,
+              "peak_rss_kib": 4080
+            },
+            {
+              "elapsed_ms": 68.839,
+              "peak_rss_kib": 3768
+            },
+            {
+              "elapsed_ms": 68.763,
+              "peak_rss_kib": 3744
+            }
+          ],
+          "stdev_elapsed_ms": 0.941,
+          "version": "g++ (GCC) 15.2.0"
+        }
+      ],
+      "manifest": "benchmarks/cross/cases/storage/manifest.json",
+      "package": "resource",
+      "title": "Scoped file acquire, use, and release",
+      "unit": "scopes",
+      "work": 20000
+    }
+  ],
+  "collected_at": "2026-07-27T18:21:01+00:00",
+  "machine": {
+    "memory_kib": 131804080,
+    "os": "Linux 7.0.1 x86_64",
+    "processor": "AMD Ryzen 9 5950X 16-Core Processor",
+    "threads": 32
+  },
+  "method": {
+    "memory": "arithmetic mean of post-exec Linux /proc VmHWM",
+    "normalization": "Koka = 1.0; lower is better",
+    "order": "deterministic rotation across implementations",
+    "time": "arithmetic mean of wall-clock process elapsed time",
+    "trials": 10,
+    "validation": "stdout checksum must be stable and identical across languages",
+    "warmups": 1
+  },
+  "schema": 1
+}

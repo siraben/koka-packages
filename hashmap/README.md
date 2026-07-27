@@ -146,6 +146,14 @@ That is the price of a balance invariant that a rotation can actually restore.
 
 Reproduce with `./run-benchmarks.sh hashmap` from the repository root.
 
+### Across languages
+
+![Map insertion and lookup in Koka, C++, Go, and Python](../benchmarks/cross/figures/data-hashmap-insert-lookup.svg)
+
+Each implementation inserts the same integer keys and values, looks them all
+up, and prints the same checksum. See the
+[ten-run time/RSS methodology](../benchmarks/cross/README.md).
+
 ## Worked example
 
 ```koka

@@ -1,0 +1,201 @@
+{
+  "cases": [
+    {
+      "id": "service-json-generate-2k",
+      "title": "Generate a compact JSON array of 2,000 integers",
+      "package": "json",
+      "chart_label": "JSON generation",
+      "unit": "documents",
+      "default_work": 1000,
+      "equivalence": "Each implementation constructs [0,...,1999] once, then uses its language's JSON library to serialize that value once per repetition in compact form. The checksum is the sum of encoded lengths.",
+      "implementations": [
+        {
+          "id": "service-json-generate-2k-koka",
+          "language": "Koka",
+          "cwd": "json-generate",
+          "version_command": ["../../../../../../kk", "--version"],
+          "build": ["bash", "build-koka.sh"],
+          "run": ["build/koka", "{work}"]
+        },
+        {
+          "id": "service-json-generate-2k-go",
+          "language": "Go",
+          "cwd": "json-generate",
+          "version_command": ["go", "version"],
+          "build": ["bash", "build-go.sh"],
+          "run": ["build/go", "{work}"]
+        },
+        {
+          "id": "service-json-generate-2k-python",
+          "language": "Python",
+          "cwd": "json-generate",
+          "version_command": ["python3", "--version"],
+          "run": ["python3", "python.py", "{work}"]
+        }
+      ]
+    },
+    {
+      "id": "service-logging-filtered-eight-fields",
+      "title": "Filter a structured log call with eight string fields",
+      "package": "logging",
+      "chart_label": "filtered structured logging",
+      "unit": "calls",
+      "default_work": 3000000,
+      "equivalence": "Each implementation constructs the same eight string fields and its logger once, configures the minimum level to ERROR, and invokes an INFO structured-log call once per repetition. The level check rejects the call before rendering or emission, and the checksum is the requested call count.",
+      "implementations": [
+        {
+          "id": "service-logging-filtered-eight-fields-koka",
+          "language": "Koka",
+          "cwd": "logging-filtered",
+          "version_command": ["../../../../../../kk", "--version"],
+          "build": ["bash", "build-koka.sh"],
+          "run": ["build/koka", "{work}"]
+        },
+        {
+          "id": "service-logging-filtered-eight-fields-go",
+          "language": "Go",
+          "cwd": "logging-filtered",
+          "version_command": ["go", "version"],
+          "build": ["bash", "build-go.sh"],
+          "run": ["build/go", "{work}"]
+        },
+        {
+          "id": "service-logging-filtered-eight-fields-python",
+          "language": "Python",
+          "cwd": "logging-filtered",
+          "version_command": ["python3", "--version"],
+          "run": ["python3", "python.py", "{work}"]
+        }
+      ]
+    },
+    {
+      "id": "service-json-parse-2k",
+      "title": "Parse a compact JSON array of 2,000 integers",
+      "package": "json",
+      "chart_label": "JSON parsing",
+      "unit": "documents",
+      "default_work": 400,
+      "equivalence": "Each implementation constructs the same compact ASCII document [0,...,1999] once, then parses the whole document into its ordinary in-memory representation once per repetition. The checksum counts successfully parsed non-empty arrays.",
+      "implementations": [
+        {
+          "id": "service-json-parse-2k-koka",
+          "language": "Koka",
+          "cwd": "json-parse",
+          "version_command": ["../../../../../../kk", "--version"],
+          "build": ["bash", "build-koka.sh"],
+          "run": ["build/koka", "{work}"]
+        },
+        {
+          "id": "service-json-parse-2k-go",
+          "language": "Go",
+          "cwd": "json-parse",
+          "version_command": ["go", "version"],
+          "build": ["bash", "build-go.sh"],
+          "run": ["build/go", "{work}"]
+        },
+        {
+          "id": "service-json-parse-2k-python",
+          "language": "Python",
+          "cwd": "json-parse",
+          "version_command": ["python3", "--version"],
+          "run": ["python3", "python.py", "{work}"]
+        }
+      ]
+    },
+    {
+      "id": "service-logging-enabled-eight-fields",
+      "title": "Format an enabled structured log record with eight string fields",
+      "package": "logging",
+      "chart_label": "enabled structured logging",
+      "unit": "records",
+      "default_work": 40000,
+      "equivalence": "Each implementation constructs the same eight string fields and logger once, then formats an enabled INFO record named 'request' once per repetition through an in-memory counting sink. The checksum is the number of non-empty records delivered to the sink.",
+      "implementations": [
+        {
+          "id": "service-logging-enabled-eight-fields-koka",
+          "language": "Koka",
+          "cwd": "logging-enabled",
+          "version_command": ["../../../../../../kk", "--version"],
+          "build": ["bash", "build-koka.sh"],
+          "run": ["build/koka", "{work}"]
+        },
+        {
+          "id": "service-logging-enabled-eight-fields-go",
+          "language": "Go",
+          "cwd": "logging-enabled",
+          "version_command": ["go", "version"],
+          "build": ["bash", "build-go.sh"],
+          "run": ["build/go", "{work}"]
+        },
+        {
+          "id": "service-logging-enabled-eight-fields-python",
+          "language": "Python",
+          "cwd": "logging-enabled",
+          "version_command": ["python3", "--version"],
+          "run": ["python3", "python.py", "{work}"]
+        }
+      ]
+    },
+    {
+      "id": "service-http-parse-render",
+      "title": "Parse an HTTP request and render a response",
+      "package": "http",
+      "chart_label": "HTTP parse and render",
+      "unit": "exchanges",
+      "default_work": 50000,
+      "equivalence": "Each repetition parses the same complete HTTP/1.1 POST request with four headers, query text, and an 11-byte body, then renders a fresh 201 response with two application headers and an 8-byte body to an in-memory buffer. The checksum combines the parsed method/path/query/body lengths, status, response-body length, and a non-empty-render marker.",
+      "implementations": [
+        {
+          "id": "service-http-parse-render-koka",
+          "language": "Koka",
+          "cwd": "http-parse-render",
+          "version_command": ["../../../../../../kk", "--version"],
+          "build": ["bash", "build-koka.sh"],
+          "run": ["build/koka", "{work}"]
+        },
+        {
+          "id": "service-http-parse-render-go",
+          "language": "Go",
+          "cwd": "http-parse-render",
+          "version_command": ["go", "version"],
+          "build": ["bash", "build-go.sh"],
+          "run": ["build/go", "{work}"]
+        }
+      ]
+    },
+    {
+      "id": "service-runtime-channel",
+      "title": "Send and receive integers through a bounded channel",
+      "package": "runtime",
+      "chart_label": "bounded channel",
+      "unit": "handoffs",
+      "default_work": 400000,
+      "equivalence": "One producer sends integers 0 through work-1 through a capacity-256 channel while one consumer receives and sums them; the producer then closes or signals completion and both tasks are joined. The checksum is the exact integer sum work*(work-1)/2.",
+      "implementations": [
+        {
+          "id": "service-runtime-channel-koka",
+          "language": "Koka",
+          "cwd": "runtime-channel",
+          "version_command": ["../../../../../../kk", "--version"],
+          "build": ["bash", "build-koka.sh"],
+          "run": ["build/koka", "{work}"]
+        },
+        {
+          "id": "service-runtime-channel-go",
+          "language": "Go",
+          "cwd": "runtime-channel",
+          "version_command": ["go", "version"],
+          "build": ["bash", "build-go.sh"],
+          "run": ["build/go", "{work}"]
+        },
+        {
+          "id": "service-runtime-channel-python",
+          "language": "Python",
+          "cwd": "runtime-channel",
+          "version_command": ["python3", "--version"],
+          "run": ["python3", "python.py", "{work}"]
+        }
+      ]
+    }
+  ]
+}
