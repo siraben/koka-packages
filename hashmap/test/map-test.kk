@@ -69,6 +69,15 @@ fun stays-balanced( xs : list<int> ) : div bool
   val m = xs.foldl(map/empty(), fn(acc, x) acc.insert(x, x))
   m.is-balanced && m.is-ordered
 
+// The same property under a hash that puts everything in three buckets, so the
+// entry count and the node count are as far apart as this key type can push
+// them.  Under the identity hash the two are equal and the property is much
+// weaker than it looks.
+fun clashing-stays-balanced( xs : list<int> ) : div bool
+  val m  = xs.foldl(map/empty(), fn(acc, x) acc.insert(Clashing(x), x))
+  val m2 = xs.foldl(m, fn(acc, x) if x % 2 == 0 then acc.remove(Clashing(x)) else acc)
+  m.is-balanced && m.is-ordered && m2.is-balanced && m2.is-ordered
+
 fun main()
   run-tests([
     group("basics", [
@@ -157,6 +166,26 @@ fun main()
         assert-equal(m2.size, 2)
         assert-equal(mi(m2.lookup(Clashing(4))), "Just(99)")
       ),
+      // Every other `is-balanced` assertion in this file runs under the
+      // identity hash, where each bucket holds exactly one entry and the entry
+      // count and the node count coincide.  These two run where they do not:
+      // an entry can only leave a bucket by being removed, so a balancer that
+      // weighed buckets by their length would be stating an invariant no
+      // rotation can restore.
+      test("a heavier bucket than its sibling stays balanced", fn()
+        // C(3) and C(6) both hash to 0 and share a bucket; C(1) hashes to 1
+        val m = [1,3,6].foldl(map/empty(), fn(acc, i) acc.insert(Clashing(i), i))
+        assert-equal(m.size, 3)
+        assert-true(m.is-balanced, "tree is not weight balanced")
+        assert-true(m.is-ordered, "node hashes are not strictly increasing")
+      ),
+      test("ten entries in one bucket and one in each of the others", fn()
+        val ks = list(1, 10).map(fn(i) i * 3) ++ [1, 2]
+        val m  = ks.foldl(map/empty(), fn(acc, i) acc.insert(Clashing(i), i))
+        assert-equal(m.size, 12)
+        assert-true(m.is-balanced, "tree is not weight balanced")
+        assert-true(m.is-ordered, "node hashes are not strictly increasing")
+      ),
     ]),
 
     group("iteration and conversion", [
@@ -240,6 +269,9 @@ fun main()
       ),
       test("stays balanced and ordered", fn()
         check(gen-list(gen-int(-500, 500)), stays-balanced)
+      ),
+      test("stays balanced and ordered under a colliding hash", fn()
+        check(gen-list(gen-int(0, 200)), clashing-stays-balanced)
       ),
       test("agrees with an association-list reference", fn()
         check(gen-list(gen-pair(gen-int(0, 50), gen-int())), ops-agree)

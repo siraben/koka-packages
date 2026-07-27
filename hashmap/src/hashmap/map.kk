@@ -8,6 +8,11 @@
    arbitrary-precision `:int`, and it is persistent: an update shares all the
    structure it did not touch.
 
+   A node stores two counts: how many entries are beneath it, which is what
+   `size` reports in O(1), and how many nodes are beneath it, which is the
+   weight the balancer uses.  They coincide only while no two keys collide, and
+   only the node count is something a rotation can change -- see `hmap` below.
+
    ## Hash requirements
 
    A key type supplies `?hash : k -> int` and `?(==) : (k,k) -> bool`.  The
@@ -57,8 +62,20 @@ module hashmap/map
 // A map from `k` to `v`.
 pub type hmap<k,v>
   Tip
-  // `size` counts entries, not nodes, so `size` is O(1).
-  Bin( size : int, hash : int, bucket : list<(k,v)>, left : hmap<k,v>, right : hmap<k,v> )
+  // Two counts, because the two questions have different answers as soon as a
+  // bucket holds more than one entry:
+  //
+  // * `size` counts *entries* in this subtree, which is what `size` reports,
+  //   in O(1).
+  // * `nodes` counts `Bin`s -- equivalently, distinct hash values -- and is
+  //   the weight the balancer works with.
+  //
+  // Only `nodes` may be used for balancing.  A rotation moves nodes, and an
+  // entry can only leave a bucket by being removed, so a balance invariant
+  // stated on `size` is one no rotation can restore: three entries sharing a
+  // hash, under a node with no sibling, would violate it permanently.
+  Bin( size : int, nodes : int, hash : int, bucket : list<(k,v)>,
+       left : hmap<k,v>, right : hmap<k,v> )
 
 pub fun empty() : hmap<k,v>
   Tip
@@ -70,30 +87,33 @@ pub fun is-empty( m : hmap<k,v> ) : bool
 
 pub fun size( m : hmap<k,v> ) : int
   match m
-    Tip                  -> 0
-    Bin(n, _, _, _, _)   -> n
+    Tip                     -> 0
+    Bin(n, _, _, _, _, _)   -> n
 
 // ----------------------------------------------------------------------------
 // balancing
 //
 // The standard weight-balanced scheme: a subtree may be at most `delta` times
 // heavier than its sibling, and a `ratio` decides between a single and a
-// double rotation.
+// double rotation.  The weight is the node count, never the entry count.
 // ----------------------------------------------------------------------------
 
 val delta : int = 3
 val ratio : int = 2
 
-fun node-size( m : hmap<k,v> ) : int
-  m.size
+// The balancer's weight: how many nodes a subtree has.
+fun weight( m : hmap<k,v> ) : int
+  match m
+    Tip                     -> 0
+    Bin(_, w, _, _, _, _)   -> w
 
 fun bin( h : int, b : list<(k,v)>, l : hmap<k,v>, r : hmap<k,v> ) : hmap<k,v>
-  Bin(b.length + l.node-size + r.node-size, h, b, l, r)
+  Bin(b.length + l.size + r.size, 1 + l.weight + r.weight, h, b, l, r)
 
-// Rebuild a node after one side changed by at most one entry.
+// Rebuild a node after one side gained or lost at most one node.
 fun balance( h : int, b : list<(k,v)>, l : hmap<k,v>, r : hmap<k,v> ) : hmap<k,v>
-  val ls = l.node-size
-  val rs = r.node-size
+  val ls = l.weight
+  val rs = r.weight
   if ls + rs <= 1 then bin(h, b, l, r)
   elif rs > delta * ls then rotate-left(h, b, l, r)
   elif ls > delta * rs then rotate-right(h, b, l, r)
@@ -101,22 +121,22 @@ fun balance( h : int, b : list<(k,v)>, l : hmap<k,v>, r : hmap<k,v> ) : hmap<k,v
 
 fun rotate-left( h : int, b : list<(k,v)>, l : hmap<k,v>, r : hmap<k,v> ) : hmap<k,v>
   match r
-    Bin(_, rh, rb, rl, rr) ->
-      if rl.node-size < ratio * rr.node-size
+    Bin(_, _, rh, rb, rl, rr) ->
+      if rl.weight < ratio * rr.weight
         then bin(rh, rb, bin(h, b, l, rl), rr)                     // single
         else match rl                                              // double
-               Bin(_, rlh, rlb, rll, rlr) ->
+               Bin(_, _, rlh, rlb, rll, rlr) ->
                  bin(rlh, rlb, bin(h, b, l, rll), bin(rh, rb, rlr, rr))
                Tip -> bin(h, b, l, r)
     Tip -> bin(h, b, l, r)
 
 fun rotate-right( h : int, b : list<(k,v)>, l : hmap<k,v>, r : hmap<k,v> ) : hmap<k,v>
   match l
-    Bin(_, lh, lb, ll, lr) ->
-      if lr.node-size < ratio * ll.node-size
+    Bin(_, _, lh, lb, ll, lr) ->
+      if lr.weight < ratio * ll.weight
         then bin(lh, lb, ll, bin(h, b, lr, r))                     // single
         else match lr                                              // double
-               Bin(_, lrh, lrb, lrl, lrr) ->
+               Bin(_, _, lrh, lrb, lrl, lrr) ->
                  bin(lrh, lrb, bin(lh, lb, ll, lrl), bin(h, b, lrr, r))
                Tip -> bin(h, b, l, r)
     Tip -> bin(h, b, l, r)
@@ -131,7 +151,7 @@ pub fun lookup( m : hmap<k,v>, key : k, ?hash : k -> int, ?(==) : (k,k) -> bool 
 fun lookup-go( t : hmap<k,v>, hv : int, key : k, ?(==) : (k,k) -> bool ) : div maybe<v>
   match t
     Tip -> Nothing
-    Bin(_, nh, b, l, r) ->
+    Bin(_, _, nh, b, l, r) ->
       if hv < nh then lookup-go(l, hv, key)
       elif hv > nh then lookup-go(r, hv, key)
       else bucket-lookup(b, key)
@@ -167,8 +187,8 @@ pub fun insert-with( m : hmap<k,v>, key : k, value : v, combine : (v, v) -> v,
 fun insert-go( t : hmap<k,v>, hv : int, key : k, value : v, combine : (v, v) -> v,
                ?(==) : (k,k) -> bool ) : div hmap<k,v>
   match t
-    Tip -> Bin(1, hv, [(key, value)], Tip, Tip)
-    Bin(_, nh, b, l, r) ->
+    Tip -> Bin(1, 1, hv, [(key, value)], Tip, Tip)
+    Bin(_, _, nh, b, l, r) ->
       if hv < nh then balance(nh, b, insert-go(l, hv, key, value, combine), r)
       elif hv > nh then balance(nh, b, l, insert-go(r, hv, key, value, combine))
       else bin(nh, bucket-insert(b, key, value, combine), l, r)
@@ -201,7 +221,7 @@ pub fun remove( m : hmap<k,v>, key : k, ?hash : k -> int, ?(==) : (k,k) -> bool 
 fun remove-go( t : hmap<k,v>, hv : int, key : k, ?(==) : (k,k) -> bool ) : div hmap<k,v>
   match t
     Tip -> Tip
-    Bin(_, nh, b, l, r) ->
+    Bin(_, _, nh, b, l, r) ->
       if hv < nh then balance(nh, b, remove-go(l, hv, key), r)
       elif hv > nh then balance(nh, b, l, remove-go(r, hv, key))
       else
@@ -219,33 +239,36 @@ fun glue( l : hmap<k,v>, r : hmap<k,v> ) : div hmap<k,v>
   match (l, r)
     (Tip, _) -> r
     (_, Tip) -> l
-    _ ->
-      if l.node-size > r.node-size then
-        match del-max(l)
-          Just((h, b, l2)) -> balance(h, b, l2, r)
-          Nothing          -> r
+    (Bin(_, _, lh, lb, ll, lr), Bin(_, _, rh, rb, rl, rr)) ->
+      if l.weight > r.weight then
+        val (h, b, l2) = del-max(lh, lb, ll, lr)
+        balance(h, b, l2, r)
       else
-        match del-min(r)
-          Just((h, b, r2)) -> balance(h, b, l, r2)
-          Nothing          -> l
+        val (h, b, r2) = del-min(rh, rb, rl, rr)
+        balance(h, b, l, r2)
 
-fun del-max( t : hmap<k,v> ) : div maybe<(int, list<(k,v)>, hmap<k,v>)>
-  match t
-    Tip -> Nothing
-    Bin(_, h, b, l, Tip) -> Just((h, b, l))
-    Bin(_, h, b, l, r) ->
-      match del-max(r)
-        Just((mh, mb, r2)) -> Just((mh, mb, balance(h, b, l, r2)))
-        Nothing            -> Nothing
+// The rightmost node's hash and bucket, and what is left of the subtree.
+//
+// These take a node's parts rather than a whole `hmap` so that there is no
+// empty case to answer for: every caller has already matched a `Bin`.  Written
+// over the whole tree they would have to return a `maybe`, and the `Nothing`
+// branch in `glue` -- unreachable, but someone has to write it -- would have to
+// return the sibling, silently discarding every entry on this side.
+fun del-max( h : int, b : list<(k,v)>, l : hmap<k,v>, r : hmap<k,v> )
+           : div (int, list<(k,v)>, hmap<k,v>)
+  match r
+    Tip -> (h, b, l)
+    Bin(_, _, rh, rb, rl, rr) ->
+      val (mh, mb, r2) = del-max(rh, rb, rl, rr)
+      (mh, mb, balance(h, b, l, r2))
 
-fun del-min( t : hmap<k,v> ) : div maybe<(int, list<(k,v)>, hmap<k,v>)>
-  match t
-    Tip -> Nothing
-    Bin(_, h, b, Tip, r) -> Just((h, b, r))
-    Bin(_, h, b, l, r) ->
-      match del-min(l)
-        Just((mh, mb, l2)) -> Just((mh, mb, balance(h, b, l2, r)))
-        Nothing            -> Nothing
+fun del-min( h : int, b : list<(k,v)>, l : hmap<k,v>, r : hmap<k,v> )
+           : div (int, list<(k,v)>, hmap<k,v>)
+  match l
+    Tip -> (h, b, r)
+    Bin(_, _, lh, lb, ll, lr) ->
+      val (mh, mb, l2) = del-min(lh, lb, ll, lr)
+      (mh, mb, balance(h, b, l2, r))
 
 // ----------------------------------------------------------------------------
 // conversion and iteration
@@ -259,7 +282,7 @@ pub fun list( m : hmap<k,v> ) : div list<(k,v)>
 fun list-go( t : hmap<k,v>, acc : list<(k,v)> ) : div list<(k,v)>
   match t
     Tip -> acc
-    Bin(_, _, b, l, r) -> list-go(l, b ++ list-go(r, acc))
+    Bin(_, _, _, b, l, r) -> list-go(l, b ++ list-go(r, acc))
 
 pub fun keys( m : hmap<k,v> ) : div list<k>
   m.list.map(fst)
@@ -276,8 +299,8 @@ pub fun foreach( m : hmap<k,v>, action : (k, v) -> <div|e> () ) : <div|e> ()
 pub fun map( m : hmap<k,v>, f : (v) -> v2 ) : div hmap<k,v2>
   match m
     Tip -> Tip
-    Bin(n, h, b, l, r) ->
-      Bin(n, h, b.map(fn(kv) (kv.fst, f(kv.snd))), l.map(f), r.map(f))
+    Bin(n, w, h, b, l, r) ->
+      Bin(n, w, h, b.map(fn(kv) (kv.fst, f(kv.snd))), l.map(f), r.map(f))
 
 pub fun filter( m : hmap<k,v>, pred : (k, v) -> bool,
                 ?hash : k -> int, ?(==) : (k,k) -> bool ) : div hmap<k,v>
@@ -305,16 +328,24 @@ pub fun show( m : hmap<k,v>, ?kshow : k -> string, ?vshow : v -> string ) : div 
 // invariants (used by the tests)
 // ----------------------------------------------------------------------------
 
-// Is the weight-balance invariant intact, and are hashes strictly increasing
-// left to right?  Exposed so tests can check the tree after every operation
-// rather than only checking observable behaviour.
+// Is the weight-balance invariant intact, are both stored counts what they
+// claim to be, and are hashes strictly increasing left to right?  Exposed so
+// tests can check the tree after every operation rather than only checking
+// observable behaviour.
+//
+// The balance clause is on `nodes`; the entry count is only checked for
+// consistency, since no rotation can move an entry between buckets.  A test
+// that only ever uses a collision-free hash cannot tell the two apart, so
+// `map-test.kk` checks this under a colliding hash as well.
 pub fun is-balanced( m : hmap<k,v> ) : div bool
   match m
     Tip -> True
-    Bin(n, _, b, l, r) ->
-      val ls = l.node-size
-      val rs = r.node-size
-      n == b.length + ls + rs &&
+    Bin(n, w, _, b, l, r) ->
+      val ls = l.weight
+      val rs = r.weight
+      n == b.length + l.size + r.size &&
+      w == 1 + ls + rs &&
+      b.is-cons &&
       (ls + rs <= 1 || (ls <= delta * rs && rs <= delta * ls)) &&
       l.is-balanced && r.is-balanced
 
@@ -324,7 +355,7 @@ pub fun is-ordered( m : hmap<k,v> ) : div bool
 fun node-hashes( t : hmap<k,v> ) : div list<int>
   match t
     Tip -> []
-    Bin(_, h, _, l, r) -> node-hashes(l) ++ [h] ++ node-hashes(r)
+    Bin(_, _, h, _, l, r) -> node-hashes(l) ++ [h] ++ node-hashes(r)
 
 fun is-strictly-increasing( xs : list<int> ) : div bool
   match xs

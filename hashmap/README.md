@@ -14,11 +14,11 @@ share across a request without copying, and this is that.
 
 ## Public API
 
-### `hashmap/map`
+### `hashmap/map` — the map
 
 | declaration | signature | what it is |
 | --- | --- | --- |
-| `hmap<k,v>` | `type { Tip; Bin(size, hash, bucket, left, right) }` | The map.  `size` counts entries, so `size` is O(1) |
+| `hmap<k,v>` | `type { Tip; Bin(size, nodes, hash, bucket, left, right) }` | The map.  `size` counts entries, so `size` is O(1); `nodes` counts `Bin`s and is the weight the balancer uses.  See [the two counts](#the-two-counts) |
 | `empty` | `() : hmap<k,v>` | |
 | `is-empty` | `(m : hmap<k,v>) : bool` | |
 | `size` | `(m : hmap<k,v>) : int` | |
@@ -39,7 +39,7 @@ share across a request without copying, and this is that.
 | `show` | `(m, ?kshow, ?vshow) : div string` | |
 | `is-balanced` / `is-ordered` | `(m) : div bool` | The tree invariants, exposed so tests can check them after every operation rather than only checking observable behaviour |
 
-### `hashmap/set`
+### `hashmap/set` — the set
 
 A distinct type over `hmap<k,()>` rather than an alias, because an alias would
 make every set operation overload-ambiguous with the map operation of the same
@@ -58,6 +58,25 @@ name.
 | `subset` | `(a, b, ?hash, ?(==)) : div bool` | |
 | `(==)` | `(a, b, ?hash, ?(==)) : div bool` | |
 | `show` | `(s, ?show) : div string` | |
+
+### The two counts
+
+A node stores both the number of entries beneath it and the number of nodes.
+They coincide only while every bucket holds exactly one entry, which is to say
+only while no two keys collide — and the whole point of the bucket is that they
+sometimes do.
+
+Only the node count may be used for balancing.  A rotation moves nodes; an
+entry can only leave a bucket by being removed.  So a balance invariant stated
+on the entry count is one no rotation can restore: insert one key hashing to 1
+and two keys hashing to 0, and the tree is a root with a two-entry child and no
+right sibling, which `rotate-right` looks at and leaves exactly as it found it.
+`is-balanced` reported `False` there, permanently, and every test that could
+have caught it ran under `int/hash(i) = i`, where the two counts are equal.
+`map-test.kk` now checks the invariant under a colliding hash as well.
+
+The second count costs one word per node — 48 bytes to 56 — which is visible
+in the lookup rows of the table below.
 
 ### What a key type must supply
 
@@ -90,20 +109,27 @@ takes, so `units/s` is directly comparable down the column:
 
 | what | n | ms | units/s |
 | --- | ---: | ---: | ---: |
-| insert (map of 1k) | 524 288 | 154 | 3 404 467 |
-| insert (map of 4k) | 524 288 | 220 | 2 383 127 |
-| insert (map of 16k) | 524 288 | 240 | 2 184 533 |
-| lookup (map of 1k) | 524 288 | 43 | 12 192 744 |
+| insert (map of 1k) | 524 288 | 144 | 3 640 888 |
+| insert (map of 4k) | 524 288 | 181 | 2 896 618 |
+| insert (map of 16k) | 524 288 | 229 | 2 289 467 |
+| lookup (map of 1k) | 524 288 | 45 | 11 650 844 |
 | lookup (map of 4k) | 524 288 | 52 | 10 082 461 |
-| lookup (map of 16k) | 524 288 | 84 | 6 241 523 |
-| remove (map of 1k) | 524 288 | 144 | 3 640 888 |
-| remove (map of 16k) | 524 288 | 195 | 2 688 656 |
-| set `union`, 8k into 8k (n = inserts) | 256 000 | 127 | 2 015 748 |
-| set `intersect`, 8k and 8k | 256 000 | 96 | 2 666 666 |
+| lookup (map of 16k) | 524 288 | 62 | 8 456 258 |
+| remove (map of 1k) | 524 288 | 124 | 4 228 129 |
+| remove (map of 16k) | 524 288 | 178 | 2 945 438 |
+| set `union`, 8k into 8k (n = inserts) | 256 000 | 115 | 2 226 086 |
+| set `intersect`, 8k and 8k | 256 000 | 87 | 2 942 528 |
 
-Sixteen times as many entries costs 1.6x per insert and 2.0x per lookup.  A
+Sixteen times as many entries costs 1.6x per insert and 1.4x per lookup.  A
 flat column would have meant the tree was not being walked at all; a 16x column
 would have meant it was a list.
+
+These are with the node count stored alongside the entry count.  Measured on
+the same machine immediately before that second count was added, the same rows
+read 138 / 177 / 222 ms for insert and 40 / 43 / 56 ms for lookup: the extra
+word per node costs about 3% on insert and about 10% on lookup, which is what a
+48-byte node growing to 56 bytes does to how much of the tree fits in cache.
+That is the price of a balance invariant that a rotation can actually restore.
 
 Reproduce with `./run-benchmarks.sh hashmap` from the repository root.
 
