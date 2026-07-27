@@ -96,7 +96,7 @@ a megabyte buffer does not keep the megabyte alive.
 | `(==)` | O(n), exits early on differing lengths |
 | `compare` | O(n), no early exit |
 | `hash`, `to-hex`, `to-string` | O(n) |
-| `index-of` | O(n·m) worst case; a naive scan, no Boyer-Moore |
+| `index-of` | O(n·m) worst case; a naive scan that skips with `memchr`, no Boyer-Moore |
 | builder `snoc*` | amortized O(1), so building a sequence of n octets is O(n) |
 | `concat`, `bytes(list)` | O(total), through the builder |
 | building by repeated `++` | **O(n²)** — use the builder |
@@ -106,21 +106,44 @@ x86_64, Koka 3.2.7, `--release`, fastest of 3):
 
 | what | n | ms | units/s |
 | --- | ---: | ---: | ---: |
-| builder `snoc` of a 10-octet chunk | 2 000 000 | 41 | 48 780 487 |
-| builder `snoc` of a 10-octet chunk | 8 000 000 | 144 | 55 555 555 |
-| repeated `++` of a 10-octet chunk | 20 000 | 30 | 666 666 |
-| repeated `++` of a 10-octet chunk | 80 000 | 634 | 126 182 |
-| `slice` 4 KiB out of a 1 MiB sequence | 200 000 | 15 | 13 333 333 |
-| `slice` 4 KiB out of a 1 MiB sequence | 800 000 | 57 | 14 035 087 |
-| `hash` 1 MiB, FNV-1a (n = MiB) | 64 | 57 | 1 122 |
-| `hash` 1 MiB, FNV-1a (n = MiB) | 256 | 240 | 1 066 |
-| `index-of`, no match, 1 MiB (n = MiB) | 32 | 92 | 347 |
-| `index-of`, no match, 1 MiB (n = MiB) | 128 | 340 | 376 |
+| builder `snoc` of a 10-octet chunk | 2 000 000 | 26 | 76 923 076 |
+| builder `snoc` of a 10-octet chunk | 8 000 000 | 103 | 77 669 902 |
+| repeated `++` of a 10-octet chunk | 20 000 | 28 | 714 285 |
+| repeated `++` of a 10-octet chunk | 80 000 | 545 | 146 788 |
+| `slice` 4 KiB out of a 1 MiB sequence | 200 000 | 14 | 14 285 714 |
+| `slice` 4 KiB out of a 1 MiB sequence | 800 000 | 55 | 14 545 454 |
+| `at`, every octet of 1 MiB (n = MiB) | 8 | 64 | 125 |
+| `at`, every octet of 1 MiB (n = MiB) | 32 | 255 | 125 |
+| `hash` 1 MiB, FNV-1a (n = MiB) | 64 | 55 | 1 163 |
+| `hash` 1 MiB, FNV-1a (n = MiB) | 256 | 219 | 1 168 |
+| `index-of`, no match, 1 MiB (n = MiB) | 256 | 2 | 128 000 |
+| `index-of`, no match, 1 MiB (n = MiB) | 1 024 | 9 | 113 777 |
+| `index-of`, worst case, 1 MiB (n = MiB) | 8 | 23 | 347 |
+| `index-of`, worst case, 1 MiB (n = MiB) | 32 | 93 | 344 |
 
-The first two pairs are the point.  Four times the work costs the builder 3.5x
-and repeated `++` 21x: O(n) against O(n²), on identical input.  `slice` and
-`hash` are flat per unit, which is what O(len) and O(n) look like.  `index-of`
-scans about 350 MiB/s, and `hash` about 1.1 GiB/s.
+The first two pairs are the point.  Four times the work costs the builder 4.0x
+and repeated `++` 19x: O(n) against O(n²), on identical input.  `slice`, `at`
+and `hash` are flat per unit, which is what O(len) and O(n) look like, and
+`hash` runs at about 1.1 GiB/s.
+
+`at` reads about 125 MiB/s, which is 8 ns an octet for a one-octet read: nearly
+all of it is the call into C and the `:maybe` it allocates.  That is why a scan
+should ask for each octet once and why `at` bounds checks inside the primitive
+rather than asking for the length first — the second call used to cost 2 ns an
+octet on its own.
+
+The two `index-of` pairs are the same scan on the two kinds of input it has.
+Octets that cannot begin a match are skipped with `memchr`, so a needle whose
+first octet is absent from the haystack — the ordinary case, and the one every
+`\r\n` search in `http` is — runs at the rate `memchr` reads memory.  The 1 MiB
+haystack sits in cache, so 100 GiB/s is a cache figure and not what a scan over
+main memory achieves.
+
+The worst case is a needle whose first *and* last octet match at every position:
+neither the skip nor the last-octet check rejects anything, so every position
+pays a `memcmp`, at about 345 MiB/s.  That is roughly 13% slower than the scan
+without the skip, which is the price of the ordinary case being two orders of
+magnitude faster.  The complexity is unchanged; only the constant is.
 
 Reproduce with `./run-benchmarks.sh bytes` from the repository root.
 
@@ -154,17 +177,21 @@ fun main()
   header field pins a megabyte request buffer.  It also means slicing in a loop
   is O(total), not free.
 * **`index-of` is a naive scan**, so a pathological needle and haystack cost
-  O(n·m).  Nothing in this tree searches for attacker-controlled needles in
-  attacker-controlled haystacks, and this would need revisiting if something
-  did.
+  O(n·m).  Skipping with `memchr` and rejecting a candidate on its last octet
+  change the constant, not that; a needle whose first and last octets are both
+  common in the haystack still costs a comparison per position.  Nothing in
+  this tree searches for attacker-controlled needles in attacker-controlled
+  haystacks, and this would need revisiting if something did.
 * **`hash` is FNV-1a.**  It is not collision resistant and must not be used
   where an adversary picks the keys and the cost of collisions matters.  It is
   here so `:bytes` can be a `hashmap` key.
-* **An allocation failure in the builder aborts the process** with a message on
-  stderr, rather than throwing or truncating.  A short response that looks
-  complete is worse than a crash, and an exception would put `exn` in the row
-  of every `snoc` and therefore of every caller of the JSON generator and the
-  HTTP response writer.
+* **An allocation failure aborts the process** with a message on stderr, rather
+  than throwing or truncating.  This holds for every allocation the package
+  makes — the builder's buffer, and the working buffers of `to-string-lossy`
+  and `to-hex` — so none of them can hand back a short result that looks
+  complete.  A short response that looks complete is worse than a crash, and an
+  exception would put `exn` in the row of every `snoc` and therefore of every
+  caller of the JSON generator and the HTTP response writer.
 * **A builder is linear by convention, not by type.**  Each operation returns
   the builder and the previous value must not be used again; using a stale one
   appends to the same buffer and is not detected.

@@ -68,6 +68,12 @@ fun main()
         assert-equal(mi(bs([10]).at(1)), "Nothing")
         assert-equal(mi(bytes-empty.at(0)), "Nothing")
       ),
+      // `at` hands the index to C, where it is clamped to a machine word: an
+      // index far beyond one must not wrap around into range.
+      test("an index too big for a machine word is Nothing, not a wrap", fn()
+        assert-equal(mi(bs([10,20,30]).at(1180591620717411303424)), "Nothing")
+        assert-equal(mi(bs([10,20,30]).at(-1180591620717411303424)), "Nothing")
+      ),
       test("at-exn throws out of range", fn()
         assert-throws({ bs([10]).at-exn(5) }, containing = "out of range")
       ),
@@ -107,6 +113,25 @@ fun main()
         assert-equal(mi(b.index-of(bytes("world"))), "Just(6)")
         assert-equal(mi(b.index-of(bytes("zzz"))), "Nothing")
         assert-equal(mi(b.index-of(bytes("o"), 5)), "Just(7)")
+      ),
+      // The scan skips ahead with `memchr` and rejects a candidate on its last
+      // octet, so the cases that exercise those: a needle whose first octet
+      // repeats, a match at the very end, a one-octet needle, an empty needle,
+      // and a starting point past the end.
+      test("index-of over repeated and boundary needles", fn()
+        val b = bytes("aaaaab")
+        assert-equal(mi(b.index-of(bytes("aaab"))), "Just(2)")
+        assert-equal(mi(b.index-of(bytes("aaac"))), "Nothing")
+        assert-equal(mi(b.index-of(bytes("ab"))), "Just(4)")
+        assert-equal(mi(b.index-of(bytes("b"))), "Just(5)")
+        assert-equal(mi(b.index-of(bytes("aaaaab"))), "Just(0)")
+        assert-equal(mi(b.index-of(bytes("aaaaabb"))), "Nothing")
+        assert-equal(mi(b.index-of(bytes("a"), 4)), "Just(4)")
+        assert-equal(mi(b.index-of(bytes("a"), 5)), "Nothing")
+        assert-equal(mi(b.index-of(bytes-empty, 3)), "Just(3)")
+        assert-equal(mi(b.index-of(bytes-empty, 99)), "Nothing")
+        assert-equal(mi(b.index-of(bytes("a"), 99)), "Nothing")
+        assert-equal(mi(bytes-empty.index-of(bytes("a"))), "Nothing")
       ),
       test("starts-with", fn()
         assert-true(bytes("hello").starts-with(bytes("hel")))

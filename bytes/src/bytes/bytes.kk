@@ -42,9 +42,12 @@
    ## Maximum size
 
    A sequence is limited by `kk_ssize_t`, so in practice by available memory.
-   A builder that cannot grow aborts the process with a message on stderr; it
-   does not truncate.  A short response that looks complete is worse than a
-   crash, and under mimalloc an allocation failure is not survivable anyway.
+   An allocation that fails aborts the process with a message on stderr; it
+   does not truncate.  That is true of every allocation this module makes: a
+   builder that cannot be created or grown, and the working buffers of
+   `to-string-lossy` and `to-hex`, all abort rather than hand back a short
+   result.  A short response that looks complete is worse than a crash, and
+   under mimalloc an allocation failure is not survivable anyway.
    This is deliberately not an exception: that would put `exn` in the row of
    every `snoc`, and so of every caller of the JSON generator and the HTTP
    response writer.
@@ -109,9 +112,15 @@ pub fun is-notempty( b : bytes ) : bool
   b.length != 0
 
 // The octet at `i` as a value in 0..255, or `Nothing` when out of range.
+//
+// One crossing into C rather than two: the primitive does the bounds check and
+// answers -1 out of range, and `i.ssize_t` clamps, so an index too large to be
+// a machine word cannot alias an in-range one.  This is the hot path of every
+// byte-at-a-time scan in the tree (see `json`'s parser), and a call across the
+// FFI boundary costs far more than the read itself.
 pub fun at( b : bytes, i : int ) : maybe<int>
-  if i < 0 || i >= b.length then Nothing
-  else Just(prim-at(b.rep, i.ssize_t).int)
+  val v = prim-at(b.rep, i.ssize_t).int
+  if v < 0 then Nothing else Just(v)
 
 // The octet at `i`, throwing when out of range.
 pub fun at-exn( b : bytes, i : int ) : exn int
@@ -163,10 +172,11 @@ pub fun index-of( b : bytes, sub : bytes, from : int = 0 ) : maybe<int>
 // Split on a single octet separator.  The result always has one more element
 // than there are separators, so `split` of an empty sequence is `[empty]`.
 pub fun split( b : bytes, sep : int ) : div list<bytes>
-  split-from(b, sep, 0, [])
+  // the separator is built once, not once per part
+  split-from(b, replicate(sep, 1), 0, [])
 
-fun split-from( b : bytes, sep : int, from : int, acc : list<bytes> ) : div list<bytes>
-  match b.index-of(replicate(sep, 1), from)
+fun split-from( b : bytes, sep : bytes, from : int, acc : list<bytes> ) : div list<bytes>
+  match b.index-of(sep, from)
     Nothing -> (Cons(b.slice(from), acc)).reverse
     Just(i) -> split-from(b, sep, i + 1, Cons(b.slice(from, i - from), acc))
 

@@ -10,6 +10,30 @@
 #include <stdint.h>
 #include <stdio.h>
 
+/* Report an allocation failure and stop.
+
+   Nothing in this file may quietly keep only the octets it already has: the
+   builder backs the JSON generator and the HTTP response writer, and a
+   silently short response is a far worse failure than a loud one -- it is a
+   corrupt message that every layer downstream will treat as valid.  kklib's
+   own allocators abort on exhaustion for the same reason, so this matches the
+   surrounding convention rather than inventing a new one.
+
+   The failure is reported rather than returned because making it an exception
+   would put `exn` in the row of every `snoc`, and so of every caller of the
+   JSON generator and the response writer -- for a condition that, under
+   mimalloc, the process does not survive anyway.
+
+   Every allocation here goes through this, so `bytes.kk`'s "it does not
+   truncate" holds for the decoders too: `to_string_lossy` and `to_hex` cannot
+   return a short string either. */
+static void kk_bbuf_fail(const char* what, kk_ssize_t want) {
+  fprintf(stderr, "bytes: cannot %s (%lld octets); out of memory\n",
+          what, (long long)want);
+  fflush(stderr);
+  abort();
+}
+
 /* ---------------------------------------------------------------- immutable */
 
 static kk_box_t kk_bytesx_empty(kk_context_t* _ctx) {
@@ -39,11 +63,15 @@ static kk_ssize_t kk_bytesx_length(kk_box_t bb, kk_context_t* _ctx) {
   return n;
 }
 
+/* The octet at `i`, or -1 when `i` is out of range.  The bounds check lives
+   here rather than in Koka so that one index costs one call across the FFI
+   boundary instead of two (a length and a read); `at` in `bytes.kk` turns the
+   -1 back into `Nothing`, so the sentinel never escapes into Koka. */
 static int32_t kk_bytesx_at(kk_box_t bb, kk_ssize_t i, kk_context_t* _ctx) {
   kk_bytes_t b = kk_bytes_unbox(bb);
   kk_ssize_t len = 0;
   const uint8_t* p = kk_bytes_buf_borrow(b, &len, _ctx);
-  int32_t r = (i < 0 || i >= len ? 0 : (int32_t)p[i]);
+  int32_t r = (i < 0 || i >= len ? -1 : (int32_t)p[i]);
   kk_bytes_drop(b, _ctx);
   return r;
 }
@@ -76,9 +104,31 @@ static kk_ssize_t kk_bytesx_index_of(kk_box_t bb, kk_box_t sb, kk_ssize_t from, 
   kk_ssize_t r = -1;
   if (m == 0) {
     r = (from <= n ? from : -1);
-  } else if (m <= n) {
-    for (kk_ssize_t i = from; i + m <= n; i++) {
-      if (memcmp(p + i, q, (size_t)m) == 0) { r = i; break; }
+  } else if (m <= n && from <= n - m) {
+    /* A naive scan, but octets that cannot start a match are skipped by
+       `memchr` rather than by a `memcmp` call each -- a call per candidate is
+       the granularity mistake this package avoids at the FFI boundary.
+
+       `memchr` runs only when the octet at hand is not the needle's first, so
+       it is called exactly when it has something to skip.  The worst case is a
+       needle whose first and last octet both match everywhere: nothing rejects
+       a candidate and every position pays a `memcmp`, about 13% slower than
+       the scan without the skip. */
+    const uint8_t first = q[0];
+    const uint8_t last  = q[m - 1];
+    kk_ssize_t i = from;
+    while (i <= n - m) {
+      if (p[i] != first) {
+        const uint8_t* hit = (const uint8_t*)memchr(p + i, (int)first, (size_t)(n - m - i + 1));
+        if (hit == NULL) break;
+        i = (kk_ssize_t)(hit - p);
+      }
+      /* the last octet is compared before the interior for the same reason:
+         it rejects a candidate without a call.  `p[i]` is already known to be
+         `first` here, and `p[i + m - 1]` is in range because `i <= n - m`. */
+      if (p[i + m - 1] == last &&
+          (m <= 2 || memcmp(p + i + 1, q + 1, (size_t)(m - 2)) == 0)) { r = i; break; }
+      i++;
     }
   }
   kk_bytes_drop(b, _ctx);
@@ -129,7 +179,7 @@ static kk_string_t kk_bytesx_to_string_lossy(kk_box_t bb, kk_context_t* _ctx) {
 
   /* worst case: every octet becomes a 3-byte replacement character */
   uint8_t* out = (uint8_t*)malloc((size_t)(n * 3 + 1));
-  if (out == NULL) { kk_bytes_drop(b, _ctx); return kk_string_empty(); }
+  if (out == NULL) kk_bbuf_fail("decode to a string", n * 3 + 1);
   kk_ssize_t o = 0, i = 0;
   while (i < n) {
     uint8_t c = p[i];
@@ -179,7 +229,7 @@ static kk_string_t kk_bytesx_to_hex(kk_box_t bb, kk_context_t* _ctx) {
   kk_ssize_t n = 0;
   const uint8_t* p = kk_bytes_buf_borrow(b, &n, _ctx);
   char* out = (char*)malloc((size_t)(n * 2 + 1));
-  if (out == NULL) { kk_bytes_drop(b, _ctx); return kk_string_empty(); }
+  if (out == NULL) kk_bbuf_fail("format as hex", n * 2 + 1);
   for (kk_ssize_t i = 0; i < n; i++) {
     out[2*i]     = digits[(p[i] >> 4) & 0xF];
     out[2*i + 1] = digits[p[i] & 0xF];
@@ -250,43 +300,29 @@ static void kk_bbuf_free(void* p, kk_block_t* block, kk_context_t* ctx) {
   }
 }
 
-/* Grow to hold `extra` more octets.
-
-   A builder that cannot grow must not quietly keep the octets it already has:
-   this builder backs the JSON generator and the HTTP response writer, and a
-   silently short response is a far worse failure than a loud one -- it is a
-   corrupt message that every layer downstream will treat as valid.  kklib's
-   own allocators abort on exhaustion for the same reason, so this matches the
-   surrounding convention rather than inventing a new one.
-
-   The failure is reported rather than returned because making it an exception
-   would put `exn` in the row of every `snoc`, and so of every caller of the
-   JSON generator and the response writer -- for a condition that, under
-   mimalloc, the process does not survive anyway. */
-static void kk_bbuf_fail(const char* what, kk_ssize_t want) {
-  fprintf(stderr, "bytes/builder: cannot %s to %lld octets; out of memory\n",
-          what, (long long)want);
-  fflush(stderr);
-  abort();
-}
-
-static bool kk_bbuf_ensure(kk_bbuf_t* b, kk_ssize_t extra) {
-  if (b->len + extra <= b->cap) return true;
+/* Grow to hold `extra` more octets.  Returns only when the room exists. */
+static void kk_bbuf_ensure(kk_bbuf_t* b, kk_ssize_t extra) {
+  if (b->len + extra <= b->cap) return;
   kk_ssize_t cap = (b->cap < 32 ? 32 : b->cap);
   while (cap < b->len + extra) {
-    if (cap > (kk_ssize_t)1 << 60) kk_bbuf_fail("grow", b->len + extra);
+    if (cap > (kk_ssize_t)1 << 60) kk_bbuf_fail("grow the builder", b->len + extra);
     cap *= 2;
   }
   uint8_t* nd = (uint8_t*)realloc(b->data, (size_t)cap);
-  if (nd == NULL) kk_bbuf_fail("grow", cap);
+  if (nd == NULL) kk_bbuf_fail("grow the builder", cap);
   b->data = nd;
   b->cap  = cap;
-  return true;
 }
 
+/* A builder is never NULL: failing to allocate one would make every later
+   push a silent no-op and `finish` return an empty sequence, which is the
+   truncation this module promises never to do.  The requested capacity is a
+   different matter -- it is only a hint, and a builder that starts with no
+   buffer still grows correctly on the first push. */
 static kk_box_t kk_bytesx_builder_new(kk_ssize_t capacity, kk_context_t* _ctx) {
   kk_bbuf_t* b = (kk_bbuf_t*)calloc(1, sizeof(kk_bbuf_t));
-  if (b != NULL && capacity > 0) {
+  if (b == NULL) kk_bbuf_fail("allocate a builder", (kk_ssize_t)sizeof(kk_bbuf_t));
+  if (capacity > 0) {
     b->data = (uint8_t*)malloc((size_t)capacity);
     if (b->data != NULL) b->cap = capacity;
   }
@@ -298,17 +334,15 @@ static kk_bbuf_t* kk_bbuf_of(kk_box_t bb, kk_context_t* ctx) {
 }
 
 static kk_unit_t kk_bytesx_builder_reserve(kk_box_t bb, kk_ssize_t n, kk_context_t* _ctx) {
-  kk_bbuf_t* b = kk_bbuf_of(bb, _ctx);
-  if (b != NULL) kk_bbuf_ensure(b, n);
+  kk_bbuf_ensure(kk_bbuf_of(bb, _ctx), n);
   kk_box_drop(bb, _ctx);
   return kk_Unit;
 }
 
 static kk_unit_t kk_bytesx_builder_push(kk_box_t bb, int32_t v, kk_context_t* _ctx) {
   kk_bbuf_t* b = kk_bbuf_of(bb, _ctx);
-  if (b != NULL && kk_bbuf_ensure(b, 1)) {
-    b->data[b->len++] = (uint8_t)(((uint32_t)v) & 0xFF);
-  }
+  kk_bbuf_ensure(b, 1);
+  b->data[b->len++] = (uint8_t)(((uint32_t)v) & 0xFF);
   kk_box_drop(bb, _ctx);
   return kk_Unit;
 }
@@ -318,7 +352,8 @@ static kk_unit_t kk_bytesx_builder_append(kk_box_t bb, kk_box_t xb, kk_context_t
   kk_bytes_t x = kk_bytes_unbox(xb);
   kk_ssize_t n = 0;
   const uint8_t* p = kk_bytes_buf_borrow(x, &n, _ctx);
-  if (b != NULL && n > 0 && kk_bbuf_ensure(b, n)) {
+  if (n > 0) {
+    kk_bbuf_ensure(b, n);
     memcpy(b->data + b->len, p, (size_t)n);
     b->len += n;
   }
@@ -331,7 +366,8 @@ static kk_unit_t kk_bytesx_builder_append_string(kk_box_t bb, kk_string_t s, kk_
   kk_bbuf_t* b = kk_bbuf_of(bb, _ctx);
   kk_ssize_t n = 0;
   const uint8_t* p = (const uint8_t*)kk_string_cbuf_borrow(s, &n, _ctx);
-  if (b != NULL && n > 0 && kk_bbuf_ensure(b, n)) {
+  if (n > 0) {
+    kk_bbuf_ensure(b, n);
     memcpy(b->data + b->len, p, (size_t)n);
     b->len += n;
   }
@@ -341,8 +377,7 @@ static kk_unit_t kk_bytesx_builder_append_string(kk_box_t bb, kk_string_t s, kk_
 }
 
 static kk_ssize_t kk_bytesx_builder_length(kk_box_t bb, kk_context_t* _ctx) {
-  kk_bbuf_t* b = kk_bbuf_of(bb, _ctx);
-  kk_ssize_t n = (b == NULL ? 0 : b->len);
+  kk_ssize_t n = kk_bbuf_of(bb, _ctx)->len;
   kk_box_drop(bb, _ctx);
   return n;
 }
@@ -352,7 +387,7 @@ static kk_ssize_t kk_bytesx_builder_length(kk_box_t bb, kk_context_t* _ctx) {
    when the builder value is dropped. */
 static kk_box_t kk_bytesx_builder_finish(kk_box_t bb, kk_context_t* _ctx) {
   kk_bbuf_t* b = kk_bbuf_of(bb, _ctx);
-  if (b == NULL || b->len == 0) { kk_box_drop(bb, _ctx); return kk_bytes_box(kk_bytes_empty()); }
+  if (b->len == 0) { kk_box_drop(bb, _ctx); return kk_bytes_box(kk_bytes_empty()); }
   kk_bytes_t out = kk_bytes_alloc_dupn(b->len, b->data, _ctx);
   b->len = 0;
   kk_box_drop(bb, _ctx);
