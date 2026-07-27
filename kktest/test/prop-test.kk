@@ -32,6 +32,20 @@ fun main()
         check(gen-int(), fn(x) x >= -20 && x <= 20, max-size = 20)
         check(gen-int(hi = Just(0)), fn(x) x >= -20 && x <= 0, max-size = 20)
       ),
+      test("generator combinators compose", fn()
+        check(gen-const(7), fn(x) x == 7)
+        check(gen-map(gen-int(0, 20), fn(x) x * 2, fn(x) x / 2),
+              fn(x) x >= 0 && x <= 40 && x % 2 == 0)
+        check(map-no-shrink(gen-bool(), fn(b) if b then "yes" else "no"),
+              fn(s) s == "yes" || s == "no")
+        check(gen-maybe(gen-int(0, 10)), fn(mx) {
+          match mx
+            Nothing -> True
+            Just(x) -> x >= 0 && x <= 10
+        })
+        check(gen-one-of(gen-const("left"), [gen-const("right")]),
+              fn(s) s == "left" || s == "right")
+      ),
     ]),
     group("shrinking", [
       // A property that fails for any list containing an element > 5.

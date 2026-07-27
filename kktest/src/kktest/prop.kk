@@ -25,6 +25,73 @@ pub struct gen<a>
   display  : (a) -> string
 
 // ----------------------------------------------------------------------------
+// Generator combinators
+// ----------------------------------------------------------------------------
+
+// A constant generator is useful for lifting edge cases into larger generated
+// structures.  It cannot shrink: it is already the only value it can produce.
+pub fun gen-const( value : a, ?show : a -> string ) : gen<a>
+  Gen(fn(r, _size) (r, value), fn(_) [], fn(x) x.show)
+
+// Transform a generator.  `unmap` is needed only for shrinking: it projects a
+// generated value back to the source domain so the source shrinker remains
+// useful.  For a one-way transform use `map-no-shrink`.
+pub fun gen-map( source : gen<a>, project : (a) -> b, unmap : (b) -> a,
+                 ?show : b -> string ) : gen<b>
+  Gen( fn(r, size)
+         val (r1, x) = (source.generate)(r, size)
+         (r1, project(x))
+     , fn(y) (source.shrink)(unmap(y)).map(project)
+     , fn(y) y.show )
+
+pub fun map-no-shrink( source : gen<a>, project : (a) -> b,
+                       ?show : b -> string ) : gen<b>
+  Gen( fn(r, size)
+         val (r1, x) = (source.generate)(r, size)
+         (r1, project(x))
+     , fn(_) []
+     , fn(y) y.show )
+
+// Optional values, with `Nothing` as the simplest counterexample.  A frequency
+// of zero means "always present"; otherwise roughly one in `nothing-every`
+// generated values is absent.
+pub fun gen-maybe( elem : gen<a>, nothing-every : int = 4 ) : gen<maybe<a>>
+  Gen( fn(r, size)
+         val (r1, absent) =
+           if nothing-every <= 0 then (r, False)
+           else
+             val (r2, n) = r.next-below(nothing-every)
+             (r2, n == 0)
+         if absent then (r1, Nothing)
+         else
+           val (r2, x) = (elem.generate)(r1, size)
+           (r2, Just(x))
+     , fn(mx)
+         { match mx
+             Nothing -> []
+             Just(x) -> [Nothing] ++ (elem.shrink)(x).map(Just)
+         }
+     , fn(mx)
+         { match mx
+             Nothing -> "Nothing"
+             Just(x) -> "Just(" ++ (elem.display)(x) ++ ")"
+         } )
+
+// Select uniformly from one or more generators.  Taking the first choice
+// separately makes an empty set of alternatives unrepresentable.
+pub fun gen-one-of( first : gen<a>, rest : list<gen<a>> = [],
+                    ?show : a -> string ) : gen<a>
+  val choices = Cons(first, rest)
+  Gen( fn(r, size)
+         val (r1, n) = r.next-below(choices.length)
+         match choices.drop(n)
+           Cons(g, _) -> (g.generate)(r1, size)
+           // `n` is below the non-empty list's length, so this cannot happen.
+           Nil -> (first.generate)(r1, size)
+     , fn(_) []
+     , fn(x) x.show )
+
+// ----------------------------------------------------------------------------
 // Core generators
 // ----------------------------------------------------------------------------
 

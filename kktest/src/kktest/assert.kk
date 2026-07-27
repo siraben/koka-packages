@@ -42,6 +42,45 @@ pub fun assert-not-equal( actual : a, unexpected : a, msg : string = "",
   if actual == unexpected then
     assert-fail(label(msg) ++ "\n  expected anything but: " ++ unexpected.show)
 
+// String assertions keep the needle and haystack in the failure report.  They
+// are deliberately separate from collection membership: strings already have
+// a stable, useful rendering and do not need an element `show` parameter.
+pub fun assert-contains( actual : string, expected : string, msg : string = "" ) : exn ()
+  if !actual.contains(expected) then
+    assert-fail(label(msg) ++ "\n  expected substring: " ++ expected.show ++
+                             "\n  actual:             " ++ actual.show)
+
+pub fun assert-not-contains( actual : string, unexpected : string,
+                             msg : string = "" ) : exn ()
+  if actual.contains(unexpected) then
+    assert-fail(label(msg) ++ "\n  unexpected substring: " ++ unexpected.show ++
+                             "\n  actual:               " ++ actual.show)
+
+// Extract a present value or fail.  This makes tests of APIs returning
+// `maybe` concise without inventing a default value for the absent case.
+pub fun assert-just( actual : maybe<a>, msg : string = "",
+                     ?show : a -> string ) : exn a
+  match actual
+    Just(x) -> x
+    Nothing -> assert-fail(label(msg) ++ "\n  expected: Just(_)\n  actual:   Nothing")
+
+pub fun assert-nothing( actual : maybe<a>, msg : string = "",
+                        ?show : a -> string ) : exn ()
+  match actual
+    Nothing -> ()
+    Just(x) -> assert-fail(label(msg) ++ "\n  expected: Nothing\n  actual:   Just(" ++ x.show ++ ")")
+
+pub fun assert-less( actual : a, upper : a, msg : string = "",
+                     ?(<) : (a,a) -> bool, ?show : a -> string ) : exn ()
+  if !(actual < upper) then
+    assert-fail(label(msg) ++ "\n  expected: " ++ actual.show ++ " < " ++ upper.show)
+
+pub fun assert-at-most( actual : a, upper : a, msg : string = "",
+                        ?(<) : (a,a) -> bool, ?(==) : (a,a) -> bool,
+                        ?show : a -> string ) : exn ()
+  if !(actual < upper || actual == upper) then
+    assert-fail(label(msg) ++ "\n  expected: " ++ actual.show ++ " <= " ++ upper.show)
+
 // Assert that `action` throws.  When `containing` is given the message must
 // contain it, so a test cannot pass on the wrong error.
 pub fun assert-throws( action : () -> io a, containing : string = "",

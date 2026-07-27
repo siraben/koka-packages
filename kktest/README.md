@@ -31,6 +31,10 @@ the same way, not to compete with anything.
 | `assert-false` | `(cond : bool, msg : string = "expected False") : exn ()` | |
 | `assert-equal` | `(actual : a, expected : a, msg : string = "", ?(==), ?show) : exn ()` | Reports both values on failure |
 | `assert-not-equal` | `(actual : a, unexpected : a, msg : string = "", ?(==), ?show) : exn ()` | |
+| `assert-contains` / `assert-not-contains` | `(actual : string, expected : string, msg : string = "") : exn ()` | String containment with both strings in the failure report |
+| `assert-just` | `(actual : maybe<a>, msg : string = "", ?show) : exn a` | Extract the value or fail without inventing a default |
+| `assert-nothing` | `(actual : maybe<a>, msg : string = "", ?show) : exn ()` | |
+| `assert-less` / `assert-at-most` | `(actual : a, upper : a, msg : string = "", …) : exn ()` | Strict and inclusive upper-bound assertions |
 | `assert-throws` | `(action : () -> io a, containing : string = "", msg : string = "…") : io ()` | With `containing`, the message must contain it, so the test cannot pass on the wrong error |
 | `assert-ok` | `(action : () -> io a, msg : string = "") : io a` | Fails with the exception's message if `action` throws, and returns its result otherwise |
 | `assert-fail` | `(msg : string) : exn a` | Fail directly |
@@ -43,6 +47,11 @@ the same way, not to compete with anything.
 | --- | --- | --- |
 | `check` | `(g : gen<a>, prop : (a) -> io bool, runs : int = 100, seed : int = 0x5EED, max-size : int = 60) : io ()` | Run `prop` on generated values; on failure, shrink and report the shrunk value with the seed.  A property that *throws* is reported as having thrown, with the exception's message |
 | `gen` | `struct { generate : (rng, int) -> div (rng, a); shrink : (a) -> list<a>; display : (a) -> string }` | A generator |
+| `gen-const` | `(value : a, ?show) : gen<a>` | A fixed edge-case value |
+| `gen-map` | `(source : gen<a>, map : a -> b, unmap : b -> a, ?show) : gen<b>` | Transform a generator while retaining source-domain shrinking |
+| `map-no-shrink` | `(source : gen<a>, map : a -> b, ?show) : gen<b>` | One-way transform without shrinking |
+| `gen-maybe` | `(elem : gen<a>, nothing-every : int = 4) : gen<maybe<a>>` | Optional values, shrinking first to `Nothing` |
+| `gen-one-of` | `(first : gen<a>, rest : list<gen<a>> = [], ?show) : gen<a>` | Uniform choice among one or more generators; the type of the call prevents an empty choice set |
 | `gen-int` | `(lo : int, hi : int) : gen<int>` | Exactly `[lo, hi]`.  Shrinks towards zero; the size budget does not narrow an explicit range |
 | `gen-int` | `(lo : maybe<int> = Nothing, hi : maybe<int> = Nothing) : gen<int>` | A bound left `Nothing` is the size budget's to choose, and grows with the run number |
 | `gen-nat` | `(hi : int = 1000000) : gen<int>` | `[0, min(hi, size)]` — unlike `gen-int`, the size budget *does* narrow an explicit bound |
