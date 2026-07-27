@@ -259,8 +259,14 @@ static int32_t kk_bytesx_cmp(kk_box_t ab, kk_box_t bb, kk_context_t* _ctx) {
   kk_ssize_t n = 0, m = 0;
   const uint8_t* p = kk_bytes_buf_borrow(a, &n, _ctx);
   const uint8_t* q = kk_bytes_buf_borrow(b, &m, _ctx);
-  kk_ssize_t k = (n < m ? n : m);
-  int c = (k == 0 ? 0 : memcmp(p, q, (size_t)k));
+  /* Borrowed buffer lengths are non-negative.  Keep that fact explicit while
+     converting to size_t: otherwise GCC conservatively treats a signed `-1`
+     as a possible SIZE_MAX bound and warns at every optimized downstream
+     build that inlines this comparison. */
+  size_t zn = (n > 0 ? (size_t)n : 0);
+  size_t zm = (m > 0 ? (size_t)m : 0);
+  size_t k = (zn < zm ? zn : zm);
+  int c = (k == 0 ? 0 : memcmp(p, q, k));
   int32_t r = (c != 0 ? (c < 0 ? -1 : 1)
                       : (n == m ? 0 : (n < m ? -1 : 1)));
   kk_bytes_drop(a, _ctx);
