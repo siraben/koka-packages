@@ -55,7 +55,7 @@ for p in "${packages[@]}"; do
     failed+=("$p")
     continue
   fi
-  if ( cd "$here/$p/bench" && "$KOKA" run --release $FLAGS ); then :; else failed+=("$p"); fi
+  if ( cd "$here/$p/bench" && "$KOKA" run --locked --release $FLAGS ); then :; else failed+=("$p"); fi
 done
 
 echo

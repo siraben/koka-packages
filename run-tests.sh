@@ -25,7 +25,7 @@ for p in "${packages[@]}"; do
     continue
   fi
   printf '\n=========== %s\n' "$p"
-  if ( cd "$here/$p" && "$KOKA" test -v0 $FLAGS ); then :; else failed+=("$p"); fi
+  if ( cd "$here/$p" && "$KOKA" test --locked -v0 $FLAGS ); then :; else failed+=("$p"); fi
 done
 
 printf '\n===========\n'

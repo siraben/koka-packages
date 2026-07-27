@@ -10,19 +10,23 @@ before it says what it is.
 
 | package | what it is | README |
 | --- | --- | --- |
-| `kktest` | the test framework: assertions, groups, expected failures, watchdog timeouts, temporary directories, property testing with shrinking, and the benchmark timing helpers | [kktest/README.md](kktest/README.md) |
-| `bytes` | immutable byte sequences, slices, an append builder, integer encoding, hashing | [bytes/README.md](bytes/README.md) |
-| `strbuilder` | O(n) string building with JSON escaping | [strbuilder/README.md](strbuilder/README.md) |
-| `hashmap` | a persistent hash map and hash set | [hashmap/README.md](hashmap/README.md) |
-| `resource` | scoped acquire / use / release, correct under cancellation | [resource/README.md](resource/README.md) |
-| `fileio` | file handles, streaming reads, atomic replace, temporary files, metadata | [fileio/README.md](fileio/README.md) |
-| `json` | a JSON value type, a parser with explicit limits and source positions, and a builder-based generator | [json/README.md](json/README.md) |
-| `logging` | structured logging as an effect, with a line-delimited JSON handler | [logging/README.md](logging/README.md) |
-| `runtime` | the libuv event loop, structured tasks with cancellation, timers, TCP, DNS, and bounded channels | [runtime/README.md](runtime/README.md) |
-| `sqlite` | SQLite with scoped connections, statements and transactions | [sqlite/README.md](sqlite/README.md) |
-| `http` | HTTP/1.1 message parsing, a minimal router, and a connection server | [http/README.md](http/README.md) |
+| `kktest` | assertions, grouped tests, watchdogs, temporary paths, composable property generators with shrinking, and benchmark helpers | [kktest/README.md](kktest/README.md) |
+| `bytes` | immutable byte sequences, searching and splitting, strict UTF-8/hex conversion, builders, integer codecs, and hashing | [bytes/README.md](bytes/README.md) |
+| `strbuilder` | O(n) string/byte building, checked finishing, joining, repetition, and JSON escaping | [strbuilder/README.md](strbuilder/README.md) |
+| `hashmap` | persistent hash maps and sets with folds, transformations, and collection algebra | [hashmap/README.md](hashmap/README.md) |
+| `resource` | scoped acquire/use/release and individually owned handles, correct under cancellation | [resource/README.md](resource/README.md) |
+| `fileio` | validated file handles, streaming, permission-correct durable atomic replacement, temporary files, and metadata | [fileio/README.md](fileio/README.md) |
+| `json` | bounded positional parsing, deterministic generation, accessors, and RFC 6901 JSON Pointer | [json/README.md](json/README.md) |
+| `logging` | structured logging as an effect, JSON-lines output, scoped filtering, context, and redaction | [logging/README.md](logging/README.md) |
+| `runtime` | a directly tested libuv loop, structured tasks, cancellation, timers, TCP/DNS, and bounded channels | [runtime/README.md](runtime/README.md) |
+| `sqlite` | scoped SQLite connections/statements, transactions, nested savepoints, and validated migrations | [sqlite/README.md](sqlite/README.md) |
+| `http` | bounded HTTP/1.1 parsing, routing, validated server configuration, and a socket-tested connection server | [http/README.md](http/README.md) |
 
 `koka-examples/notes-service` puts them together.
+
+The [maturity audit](MATURITY_AUDIT.md) records what was checked, what was
+implemented, the verification result, and the deliberate boundary of every
+package.
 
 ## Building and testing
 
@@ -30,10 +34,14 @@ These need the compiler from the sibling `koka` checkout, which provides the
 project commands and the `[native]` support they rely on:
 
 ```sh
-../kk build          # inside a package directory
-../kk test
+../../kk build       # inside a package directory
+../../kk test --locked
 ./run-tests.sh       # every package, in dependency order
 ```
+
+The repository scripts use `--locked`; a normal verification run never
+silently rewrites dependency resolution.  Run `fetch` deliberately after
+changing a path dependency, review the resulting `koka.lock`, then test again.
 
 Under the native sanitizers:
 
@@ -125,8 +133,8 @@ scope's release chain is O(k) *stack*, a wide channel's buffer append is O(n²)
 executable whose `main` calls `run-tests`.  `koka test` compiles and runs each
 one and reports a non-zero exit status *or* an uncaught exception as a failure.
 
-Two modules are covered only indirectly and it is worth knowing which:
-`http/server` (the accept loop, connection lifecycle, timeouts and shutdown --
-the source of most of the bugs in the work log) and `runtime/loop` have no
-package-level test.  Both are exercised by the reference service's integration
-suite in `koka-examples/notes-service`, which CI runs.
+`runtime/loop` has direct tests for completions, timers, listener lifecycle,
+cancellation and handle-kind errors. `http/server` has direct ephemeral-socket
+tests for startup validation, fragmented and pipelined requests, handler
+failure, malformed requests and request limits. The reference service still
+provides the larger cross-package integration suite.
