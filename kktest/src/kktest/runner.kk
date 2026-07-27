@@ -54,15 +54,21 @@ fun join-path( a : string, b : string ) : string
 pub fun run-tests( items : list<suite> ) : io a
   val cases   = flatten(items)
   val results = cases.map(run-one)
-  val failed  = results.filter(fn(r) !r.snd)
+  val failed  = results.filter(fn(r) !r.passed)
   println("")
   println(results.length.show ++ " tests, " ++
           (results.length - failed.length).show ++ " passed, " ++
           failed.length.show ++ " failed")
-  failed.foreach( fn(r) println("  failed: " ++ r.fst) )
+  failed.foreach( fn(r) println("  failed: " ++ r.name) )
   exit(if failed.is-nil then 0 else 1)
 
-fun run-one( c : test-case ) : io (string, bool)
+// What one case did.  A named pair rather than a `(string, bool)`, so that the
+// summary reads `r.passed` instead of `r.snd`.
+struct case-result
+  name   : string
+  passed : bool
+
+fun run-one( c : test-case ) : io case-result
   set-watchdog(c.timeout-s, "TIMEOUT after " ++ c.timeout-s.show ++
                             "s in test: " ++ c.name)
   val outcome = try({ (c.action)() })
@@ -72,19 +78,19 @@ fun run-one( c : test-case ) : io (string, bool)
       if c.expect-fail then
         println("FAIL " ++ c.name)
         println("  expected this test to fail, but it passed")
-        (c.name, False)
+        Case-result(c.name, False)
       else
         println("ok   " ++ c.name)
-        (c.name, True)
+        Case-result(c.name, True)
     Error(ex) ->
       if c.expect-fail then
         println("ok   " ++ c.name ++ " (expected failure)")
-        (c.name, True)
+        Case-result(c.name, True)
       else
         val kind = if ex.is-assertion then "" else " (unexpected exception)"
         println("FAIL " ++ c.name ++ kind)
         println("  " ++ indent(ex.message))
-        (c.name, False)
+        Case-result(c.name, False)
 
 fun indent( s : string ) : string
   s.split("\n").intersperse("\n  ").join

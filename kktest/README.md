@@ -41,10 +41,11 @@ the same way, not to compete with anything.
 
 | declaration | signature | what it is |
 | --- | --- | --- |
-| `check` | `(g : gen<a>, prop : (a) -> io bool, runs : int = 100, seed : int = 0x5EED, max-size : int = 60) : io ()` | Run `prop` on generated values; on failure, shrink and report the shrunk value with the seed |
+| `check` | `(g : gen<a>, prop : (a) -> io bool, runs : int = 100, seed : int = 0x5EED, max-size : int = 60) : io ()` | Run `prop` on generated values; on failure, shrink and report the shrunk value with the seed.  A property that *throws* is reported as having thrown, with the exception's message |
 | `gen` | `struct { generate : (rng, int) -> div (rng, a); shrink : (a) -> list<a>; display : (a) -> string }` | A generator |
-| `gen-int` | `(lo : int = -1000000, hi : int = 1000000) : gen<int>` | Shrinks towards zero; an explicit range is *not* narrowed by the size budget |
-| `gen-nat` | `(hi : int = 1000000) : gen<int>` | |
+| `gen-int` | `(lo : int, hi : int) : gen<int>` | Exactly `[lo, hi]`.  Shrinks towards zero; the size budget does not narrow an explicit range |
+| `gen-int` | `(lo : maybe<int> = Nothing, hi : maybe<int> = Nothing) : gen<int>` | A bound left `Nothing` is the size budget's to choose, and grows with the run number |
+| `gen-nat` | `(hi : int = 1000000) : gen<int>` | `[0, min(hi, size)]` — unlike `gen-int`, the size budget *does* narrow an explicit bound |
 | `gen-bool` | `() : gen<bool>` | |
 | `gen-string` | `(alphabet : string = "a…z0…9 ") : gen<string>` | The default alphabet contains nothing that needs escaping |
 | `gen-text` | `() : gen<string>` | Quotes, backslashes, control characters, and 2-, 3- and 4-octet UTF-8.  Use this for anything about encoding |
@@ -83,6 +84,35 @@ the same way, not to compete with anything.
 | `rate` | `(m : measurement) : string` | Units per second, or `-` when the run was under a millisecond |
 | `measurement` | `struct { label; size; ms; check }` | |
 
+## Complexity
+
+| operation | cost |
+| --- | --- |
+| `run-tests` over `n` cases | O(n), in source order, one process |
+| `check` with `r` runs | O(r) generator calls, plus shrinking only on failure |
+| shrinking a counterexample | at most 200 steps, each taking the first failing candidate |
+| `flatten` over a suite of `n` cases | O(n) |
+
+Measured on this machine (AMD Ryzen 9 5950X, 32 threads, 126 GiB, Linux 7.0.1
+x86_64, Koka 3.2.7, `--release`, fastest of 3):
+
+| what | n | ms | units/s |
+| --- | ---: | ---: | ---: |
+| `splitmix64` `next-below` | 2 000 000 | 401 | 4 987 531 |
+| `splitmix64` `next-below` | 8 000 000 | 1 569 | 5 098 789 |
+| `check`: n passing runs of a `list<int>` | 2 000 | 6 | 333 333 |
+| `check`: n passing runs of a `list<int>` | 8 000 | 26 | 307 692 |
+| `check`: n failures found and shrunk | 2 000 | 4 | 500 000 |
+| `check`: n failures found and shrunk | 8 000 | 18 | 444 444 |
+
+Both pairs scale linearly in `n`, which is what "`check` costs `runs` generator
+calls" means.  The generator is the expensive part: about 5 million
+`next-below` calls per second, or roughly 200 ns each, because every step
+converts between Koka's arbitrary-precision `:int` and `:int64`.
+
+The failure rows were 5 and 20 ms before shrinking stopped evaluating every
+candidate to then use only the first one that failed.
+
 ## Worked example
 
 ```koka
@@ -111,32 +141,6 @@ Put that in a file under the package's `test` directory and `koka test` compiles
 it, runs it, and reports a non-zero exit status or an uncaught exception as a
 failure.
 
-## Complexity
-
-| operation | cost |
-| --- | --- |
-| `run-tests` over `n` cases | O(n), in source order, one process |
-| `check` with `r` runs | O(r) generator calls, plus shrinking only on failure |
-| shrinking a counterexample | at most 200 steps, each taking the first failing candidate |
-| `flatten` over a suite of `n` cases | O(n) |
-
-Measured on this machine (AMD Ryzen 9 5950X, 32 threads, 126 GiB, Linux 7.0.1
-x86_64, Koka 3.2.7, `--release`, fastest of 3):
-
-| what | n | ms | units/s |
-| --- | ---: | ---: | ---: |
-| `splitmix64` `next-below` | 2 000 000 | 452 | 4 424 778 |
-| `splitmix64` `next-below` | 8 000 000 | 1 925 | 4 155 844 |
-| `check`: n passing runs of a `list<int>` | 2 000 | 7 | 285 714 |
-| `check`: n passing runs of a `list<int>` | 8 000 | 27 | 296 296 |
-| `check`: n failures found and shrunk | 2 000 | 6 | 333 333 |
-| `check`: n failures found and shrunk | 8 000 | 20 | 400 000 |
-
-Both pairs scale linearly in `n`, which is what "`check` costs `runs` generator
-calls" means.  The generator is the expensive part: about 4.2 million
-`next-below` calls per second, or roughly 240 ns each, because every step
-converts between Koka's arbitrary-precision `:int` and `:int64`.
-
 ## Limits
 
 * **One process per test file.**  The watchdog is a real alarm and takes the
@@ -149,8 +153,15 @@ converts between Koka's arbitrary-precision `:int` and `:int64`.
 * **`expect-fail` accepts any exception.**  It does not check *why* the body
   failed.  Use `assert-throws(.., containing = "…")` when that matters.
 * **`check`'s `max-size` bounds generated structures, not an explicit range.**
-  `gen-int(-500, 500)` really does produce values across that range; only the
-  *default* range is narrowed by the size budget.
+  `gen-int(-500, 500)` really does produce values across that range; only a
+  bound left `Nothing` is chosen by the size budget.  The two used to be told
+  apart by comparing against the default value, so `gen-int(-1000000, 500)` —
+  an explicit range that happened to name the default — was silently clamped,
+  and a generator that under-generates has nothing to report it.
+* **`gen-nat` is the exception**, and knowingly so: its explicit `hi` *is*
+  narrowed by the size budget, so `gen-nat(50)` generates `[0, min(50, size)]`.
+  Making it behave like `gen-int` would change what an existing caller in
+  another package generates.
 * **Shrinking is greedy and depth-bounded** (200 steps).  It takes the first
   simpler candidate that still fails, so it finds a local minimum, not the
   global one.

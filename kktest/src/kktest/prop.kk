@@ -28,31 +28,52 @@ pub struct gen<a>
 // Core generators
 // ----------------------------------------------------------------------------
 
-// Integers in `[lo, hi]`, shrinking towards zero.
+// Integers, shrinking towards zero.  A bound the caller did not give is
+// `Nothing`, and the size budget chooses it: the default range grows with the
+// run number, which is what the size is for.
 //
-// The size budget is *not* allowed to narrow an explicit range.  It used to:
-// `check` runs at size 60 and list elements at size 100, so `gen-int(-500,500)`
-// only ever produced [-100,100] and every caller that widened the range to
-// reach an interesting regime was silently ignored.  The size still bounds the
-// default range, which is what it is for.
-pub fun gen-int( lo : int = -1000000, hi : int = 1000000 ) : gen<int>
+// The size budget is *not* allowed to narrow a bound the caller did give.  It
+// used to, and the fix that was supposed to remove that used the default value
+// itself as the "caller said nothing" flag:
+//
+//     val l = if lo == -1000000 then max(lo, 0 - bound) else lo
+//
+// so `gen-int(-1000000, 500)` was still clamped to the size budget, silently.
+// A generator that under-generates makes every property that uses it weaker
+// than it reads, and nothing fails to say so -- which is why the absent bound
+// is a `maybe` and not a number that could also be meant.
+pub fun maybe/gen-int( lo : maybe<int> = Nothing, hi : maybe<int> = Nothing ) : gen<int>
   Gen( fn(r, size)
-         val bound = if size <= 0 then 0 else size
-         // only clamp where the caller did not say
-         val l = if lo == -1000000 then max(lo, 0 - bound) else lo
-         val h = if hi ==  1000000 then min(hi, bound) else hi
+         val bound = max(size, 0)
+         val l = match lo
+                   Just(x) -> x
+                   Nothing -> 0 - bound
+         val h = match hi
+                   Just(x) -> x
+                   Nothing -> bound
          r.next-range(min(l, h), max(l, h))
      , shrink-int
      , fn(i) i.show )
+
+// Integers in `[lo, hi]`, shrinking towards zero.  The size budget does not
+// narrow this range: `gen-int(-500, 500)` really does generate -500 to 500.
+pub fun range/gen-int( lo : int, hi : int ) : gen<int>
+  maybe/gen-int(Just(lo), Just(hi))
 
 fun shrink-int( i : int ) : list<int>
   if i == 0 then []
   else
     val halved = i / 2
     val cands  = [0, halved, i - (if i > 0 then 1 else -1)]
-    cands.filter(fn(c) c != i).distinct-ints
+    cands.filter(fn(c) c != i).distinct
 
 // Non-negative integers, shrinking towards zero.
+//
+// Unlike `gen-int`, an explicit `hi` here is an upper bound that the size
+// budget may narrow further, so `gen-nat(50)` generates `[0, min(50, size)]`.
+// That is the inconsistency it looks like; it is left alone because changing it
+// changes what an existing caller outside this package generates, and no bound
+// is being used as a flag here.
 pub fun gen-nat( hi : int = 1000000 ) : gen<int>
   Gen( fn(r, size) r.next-range(0, min(hi, max(size, 0)))
      , fn(i) shrink-int(i).filter(fn(c) c >= 0)
@@ -92,7 +113,7 @@ fun shrink-string( s : string ) : list<string>
     // drop the second half, drop one character from the front and the back
     val n = cs.length
     val cands = [ "", cs.take(n / 2).string, cs.drop(1).string, cs.take(n - 1).string ]
-    cands.filter(fn(c) c != s).distinct-strings
+    cands.filter(fn(c) c != s).distinct
 
 // Lists of up to `size` elements, shrinking by dropping elements first (which
 // finds "any element triggers it" fast) and then by shrinking elements.
@@ -145,10 +166,19 @@ pub fun gen-pair( ga : gen<a>, gb : gen<b> ) : gen<(a, b)>
 // Running a property
 // ----------------------------------------------------------------------------
 
+// How a run of a property did not hold.  A property that throws is not the
+// same event as one that returns `False`: the exception is usually the whole
+// diagnosis, and reporting it as a bare counterexample with no cause throws it
+// away at the one moment it was worth something.
+type prop-failure
+  Falsified
+  Threw( message : string )
+
 // Check that `prop` holds for `runs` generated values.
 //
 // On failure the counterexample is shrunk and the *shrunk* value is reported
-// together with the seed, so the exact run can be replayed.
+// together with the seed, so the exact run can be replayed.  A property that
+// throws is reported as having thrown, with the exception's message.
 pub fun check( g : gen<a>, prop : (a) -> io bool,
                runs : int = 100, seed : int = 0x5EED, max-size : int = 60 ) : io ()
   run-checks(g, prop, rng(seed), runs, 0, max-size, seed)
@@ -160,38 +190,70 @@ fun run-checks( g : gen<a>, prop : (a) -> io bool, r : rng,
     // grow the size with the run number so small cases are tried first
     val size = 1 + ((i * max-size) / max(runs, 1))
     val (r1, x) = (g.generate)(r, size)
-    val held = safe-prop(prop, x)
-    if held then run-checks(g, prop, r1, runs, i + 1, max-size, seed)
-    else
-      val small = shrink-to-failure(g, prop, x, 0)
-      assert-fail("property failed after " ++ (i + 1).show ++ " runs (seed " ++ seed.show ++ ")" ++
-                  "\n  counterexample: " ++ (g.display)(small) ++
-                  (if (g.display)(small) == (g.display)(x) then ""
-                   else "\n  original:       " ++ (g.display)(x)))
+    match run-prop(prop, x)
+      Nothing   -> run-checks(g, prop, r1, runs, i + 1, max-size, seed)
+      Just(why) ->
+        val (small, why2) = shrink-to-failure(g, prop, x, why, 0)
+        assert-fail(failure-report(g, x, small, why2, i + 1, seed))
 
-// A property that throws counts as failing, not as an error in the harness.
-fun safe-prop( prop : (a) -> io bool, x : a ) : io bool
+// Run the property once.  `Nothing` means it held; anything else says how it
+// did not, so a crash is never reported as a plain failed property.
+fun run-prop( prop : (a) -> io bool, x : a ) : io maybe<prop-failure>
   match try({ prop(x) })
-    Ok(b)     -> b
-    Error(_)  -> False
+    Ok(True)   -> Nothing
+    Ok(False)  -> Just(Falsified)
+    Error(ex)  -> Just(Threw(ex.message))
+
+fun failure-report( g : gen<a>, original : a, small : a, why : prop-failure,
+                    runs : int, seed : int ) : string
+  val headline = match why
+                   Falsified -> "property failed after "
+                   Threw(_)  -> "property threw after "
+  val cause = match why
+                Falsified -> ""
+                Threw(m)  -> "\n  threw:          " ++ m
+  headline ++ runs.show ++ " runs (seed " ++ seed.show ++ ")" ++
+  "\n  counterexample: " ++ (g.display)(small) ++
+  (if (g.display)(small) == (g.display)(original) then ""
+   else "\n  original:       " ++ (g.display)(original)) ++
+  cause
 
 // Greedily take the first simpler candidate that still fails, until no
-// candidate does.  `depth` bounds the walk so a bad `shrink` cannot hang the
-// test run.
-fun shrink-to-failure( g : gen<a>, prop : (a) -> io bool, x : a, depth : int ) : io a
-  if depth >= 200 then x
+// candidate does, and carry back *why* that candidate failed.  `depth` bounds
+// the walk so a bad `shrink` cannot hang the test run.
+fun shrink-to-failure( g : gen<a>, prop : (a) -> io bool, x : a,
+                       why : prop-failure, depth : int ) : io (a, prop-failure)
+  if depth >= 200 then (x, why)
   else
-    val failing = (g.shrink)(x).filter(fn(c) !safe-prop(prop, c))
-    match failing
-      Cons(c, _) -> shrink-to-failure(g, prop, c, depth + 1)
-      Nil        -> x
+    match first-failing(prop, (g.shrink)(x))
+      Just((c, why2)) -> shrink-to-failure(g, prop, c, why2, depth + 1)
+      Nothing         -> (x, why)
+
+// The first candidate that does not hold, and why.  Candidates are tried one
+// at a time and the walk stops at the first failure, so an expensive property
+// is not run on every candidate to then use only the first.
+fun first-failing( prop : (a) -> io bool, cands : list<a> ) : io maybe<(a, prop-failure)>
+  match cands
+    Nil -> Nothing
+    Cons(c, rest) ->
+      match run-prop(prop, c)
+        Just(why) -> Just((c, why))
+        Nothing   -> first-failing(prop, rest)
 
 // ----------------------------------------------------------------------------
 // helpers
 // ----------------------------------------------------------------------------
 
-fun distinct-ints( xs : list<int> ) : list<int>
-  xs.foldl([], fn(acc, x) if acc.any(fn(y) y == x) then acc else acc ++ [x])
-
-fun distinct-strings( xs : list<string> ) : list<string>
-  xs.foldl([], fn(acc, x) if acc.any(fn(y) y == x) then acc else acc ++ [x])
+// Duplicates removed, keeping the first occurrence and the order.
+//
+// One function with an implicit `(==)` rather than one per element type: the
+// int and string copies this replaces differed only in which `(==)` they
+// closed over.
+//
+// The scan is linear per element and so quadratic overall.  It stays that way
+// deliberately: the only callers are the shrink-candidate lists above, which
+// hold three or four elements, and the obvious fix -- `hashmap/set` -- is not
+// reachable from here, because `hashmap` depends on `kktest` and not the other
+// way round.
+fun distinct( xs : list<a>, ?(==) : (a,a) -> bool ) : list<a>
+  xs.foldl([], fn(acc, x) if acc.any(fn(y) y == x) then acc else Cons(x, acc)).reverse
