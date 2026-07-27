@@ -64,26 +64,39 @@ static int32_t kk_fio_close(int32_t fd, kk_context_t* _ctx) {
   return (r < 0 ? -(int32_t)errno : 0);
 }
 
+/* Why the most recent kk_fio_read returned nothing: 0 when it did not fail,
+   and the errno otherwise.  It is *not* the process-wide `errno`: that is left
+   untouched by a successful read and by a read that reaches end of file, so
+   reading it back after the fact reports whatever the last failing syscall
+   anywhere in the process happened to leave behind.  This is written on every
+   call, so it always describes that call and nothing else.
+
+   Single threaded by construction: the file API is not shared across threads
+   in this program. */
+static int32_t kk_fio_read_errno = 0;
+
 /* Read at most `max` octets.  Returns the octets read; an empty result means
-   end of file.  Errors are reported through the out-parameter style below. */
+   end of file when kk_fio_read_error is 0, and a failure otherwise.  A short
+   read is not an error: it is what a pipe, a socket or a signal gives you. */
 static kk_box_t kk_fio_read(int32_t fd, kk_ssize_t max, kk_context_t* _ctx) {
+  kk_fio_read_errno = 0;
   if (max <= 0) return kk_bytes_box(kk_bytes_empty());
   uint8_t* tmp = (uint8_t*)malloc((size_t)max);
-  if (tmp == NULL) return kk_bytes_box(kk_bytes_empty());
+  if (tmp == NULL) { kk_fio_read_errno = ENOMEM; return kk_bytes_box(kk_bytes_empty()); }
   ssize_t n;
   do { n = read((int)fd, tmp, (size_t)max); } while (n < 0 && errno == EINTR);
+  if (n < 0) kk_fio_read_errno = (int32_t)errno;
   kk_bytes_t out = (n <= 0) ? kk_bytes_empty()
                             : kk_bytes_alloc_dupn((kk_ssize_t)n, tmp, _ctx);
   free(tmp);
   return kk_bytes_box(out);
 }
 
-/* The errno of the last read/write, so the Koka side can tell "end of file"
-   from "error".  Single threaded by construction: the file API is not shared
-   across threads in this program. */
-static int32_t kk_fio_last_errno(kk_context_t* _ctx) {
+/* Why the last read returned nothing, so the Koka side can tell "end of file"
+   from "error".  Asked for only when the read came back empty. */
+static int32_t kk_fio_read_error(kk_context_t* _ctx) {
   kk_unused(_ctx);
-  return (int32_t)errno;
+  return kk_fio_read_errno;
 }
 
 /* Write everything, looping over short writes.  Returns octets written or
@@ -121,8 +134,23 @@ static int64_t kk_fio_seek(int32_t fd, int64_t off, int32_t whence, kk_context_t
   return (r < 0 ? -(int64_t)errno : (int64_t)r);
 }
 
-/* Metadata.  Returns size, or -errno.  `kind` and `mtime` come from the
-   companion calls so the Koka side can keep a simple record. */
+/* Why the most recent kk_fio_kind or kk_fio_mtime gave up: 0 when the stat
+   succeeded and the errno otherwise.  Neither of those two can report failure
+   in its return value -- every small integer is a legitimate kind, and every
+   int64 (negative ones included: st_mtime is signed, and a file older than
+   1970 has a negative one) is a legitimate modification time -- so the reason
+   lives here and the Koka side asks for it only when the answer is ambiguous.
+   Written on every call, like kk_fio_read_errno. */
+static int32_t kk_fio_stat_errno = 0;
+
+static int32_t kk_fio_stat_error(kk_context_t* _ctx) {
+  kk_unused(_ctx);
+  return kk_fio_stat_errno;
+}
+
+/* Metadata.  Returns size, or -errno; a size is never negative, so that one
+   can carry its own failure.  `kind` and `mtime` come from the companion calls
+   so the Koka side can keep a simple record. */
 static int64_t kk_fio_size(kk_string_t path, kk_context_t* _ctx) {
   char buf[4096];
   kk_fio_borrow_path(path, buf, sizeof(buf), _ctx);
@@ -132,24 +160,31 @@ static int64_t kk_fio_size(kk_string_t path, kk_context_t* _ctx) {
   return (int64_t)st.st_size;
 }
 
-/* 0 = missing, 1 = regular file, 2 = directory, 3 = other */
+/* 0 = the stat failed (kk_fio_stat_error says why -- "missing" is only one of
+   the reasons), 1 = regular file, 2 = directory, 3 = other */
 static int32_t kk_fio_kind(kk_string_t path, kk_context_t* _ctx) {
   char buf[4096];
   kk_fio_borrow_path(path, buf, sizeof(buf), _ctx);
   kk_string_drop(path, _ctx);
   struct stat st;
-  if (stat(buf, &st) != 0) return 0;
+  kk_fio_stat_errno = 0;
+  if (stat(buf, &st) != 0) { kk_fio_stat_errno = (int32_t)errno; return 0; }
   if (S_ISREG(st.st_mode)) return 1;
   if (S_ISDIR(st.st_mode)) return 2;
   return 3;
 }
 
+/* The modification time, which is signed and negative for a file older than
+   1970, so failure is reported as 0 plus kk_fio_stat_error rather than by the
+   sign.  0 is also a legitimate time (the epoch itself); that is the one value
+   the Koka side has to ask about. */
 static int64_t kk_fio_mtime(kk_string_t path, kk_context_t* _ctx) {
   char buf[4096];
   kk_fio_borrow_path(path, buf, sizeof(buf), _ctx);
   kk_string_drop(path, _ctx);
   struct stat st;
-  if (stat(buf, &st) != 0) return -(int64_t)errno;
+  kk_fio_stat_errno = 0;
+  if (stat(buf, &st) != 0) { kk_fio_stat_errno = (int32_t)errno; return 0; }
   return (int64_t)st.st_mtime;
 }
 

@@ -28,7 +28,7 @@ mode passed at creation, no file locking, no memory mapping, and no watching.
 
 | declaration | signature | what it is |
 | --- | --- | --- |
-| `read` | `(f : file, max : int = 65536) : io bytes` | At most `max` octets; empty means end of file.  Retries on `EINTR`/`EAGAIN` |
+| `read` | `(f : file, max : int = 65536) : io bytes` | At most `max` octets; empty means end of file, a failed read throws.  Retries on `EINTR`/`EAGAIN` |
 | `read-all` | `(f : file, chunk : int = 65536, max-bytes : int = 64 MiB) : io bytes` | The whole file, in chunks, bounded |
 | `read-file` | `(path : string, max-bytes : int = 64 MiB) : io bytes` | |
 | `read-text-file` | `(path : string, max-bytes : int = 64 MiB) : io string` | Throws if the contents are not valid UTF-8 |
@@ -53,10 +53,10 @@ mode passed at creation, no file locking, no memory mapping, and no watching.
 | `whence` | `type { FromStart; FromCurrent; FromEnd }` | |
 | `seek` | `(f : file, offset : int, from : whence = FromStart) : io int` | The new offset |
 | `path-kind` | `type { Missing; RegularFile; Directory; Other }` | |
-| `kind` | `(path : string) : io path-kind` | |
-| `path-exists` | `(path : string) : io bool` | |
+| `kind` | `(path : string) : io path-kind` | `Missing` only when the path really is not there (ENOENT, ENOTDIR); a stat that fails for any other reason throws |
+| `path-exists` | `(path : string) : io bool` | `False` means "not there", not "could not tell" — see `kind` |
 | `size` | `(path : string) : io int` | |
-| `modified-at` | `(path : string) : io int` | Whole seconds since the epoch |
+| `modified-at` | `(path : string) : io int` | Whole seconds since the epoch, negative for a file older than 1970 |
 | `remove` | `(path : string) : io ()` | |
 | `rename` | `(from : string, to : string) : io ()` | |
 | `with-temp-file` | `(action : (string, file) -> io a, dir : string = "/tmp", pre : string = "kk") : io a` | Creates it, hands over the path and an open handle, closes and unlinks on every exit path |
@@ -155,8 +155,14 @@ fun main()
   past it.  That is deliberate — reading an unexpectedly huge file should fail
   loudly rather than exhaust memory — but it means a caller that really wants a
   larger file has to say so.
-* **`read` retries only `EINTR` (4) and `EAGAIN` (11)**, and treats any other
-  empty result as end of file.  The errno numbers are Linux's.
+* **`read` retries `EINTR` (4) and `EAGAIN` (11)**, and throws on anything
+  else; an empty result means end of file and nothing else.  `EINTR` is already
+  retried inside the C loop, so the Koka-side retry is belt and braces, and
+  `EAGAIN` can only arrive from a descriptor something else made non-blocking —
+  nothing here can open one that way, and retrying it spins.  The errno numbers
+  are Linux's.
+* **`kind` and `modified-at` hardcode Linux errno values too** (ENOENT 2,
+  ENOTDIR 20), for deciding which stat failures mean "not there".
 * **`file-error-kind` hardcodes Linux errno values** (2, 13, 17, 21).  On
   another platform those constants are wrong, and everything falls through to
   `OtherError`.

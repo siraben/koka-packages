@@ -106,6 +106,16 @@ fun main()
           with-file(p, fn(f) f.write-string("b"), append-only)
           assert-equal(read-text-file(p), "ab")
       ),
+      test("reading a write-only handle fails instead of reporting end of file", fn()
+        in-dir fn(d)
+          val p = d ++ "/wo.txt"
+          write-text-file(p, "eleven byte")
+          // `append-only` rather than `write-only` so the file keeps its
+          // contents: the point is that a read that *cannot* work must not
+          // report "end of file" about a file with eleven octets in it.
+          assert-throws({ with-file(p, fn(f) f.read(100), append-only) },
+                        containing = "cannot read")
+      ),
       test("create-new refuses an existing file", fn()
         in-dir fn(d)
           val p = d ++ "/x.txt"
@@ -181,6 +191,17 @@ fun main()
           match d.kind
             Directory -> ()
             _ -> assert-fail("expected a directory")
+      ),
+      test("a path through a regular file is missing, not an error", fn()
+        in-dir fn(d)
+          val p = d ++ "/nd.txt"
+          write-text-file(p, "x")
+          // ENOTDIR: the stat fails, but the path really is not there, so
+          // `Missing` is the truth rather than a wildcard swallowing an error.
+          match (p ++ "/below").kind
+            Missing -> ()
+            _       -> assert-fail("expected a missing path")
+          assert-false(path-exists(p ++ "/below"))
       ),
       test("size", fn()
         in-dir fn(d)

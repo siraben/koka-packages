@@ -111,15 +111,24 @@ fun close-quietly( f : file ) : io ()
 // reading
 // ----------------------------------------------------------------------------
 
-// Read at most `max` octets.  An empty result means end of file.
+// Read at most `max` octets.  An empty result means end of file; a read that
+// fails throws, like every other call here.
 pub fun read( f : file, max : int = 65536 ) : io bytes
   val b = unsafe-bytes-from-raw(prim-read(f.fd.int32, max.ssize_t))
   if b.is-notempty then b
   else
-    // An empty result is end of file unless the read was interrupted, in
-    // which case retrying is the correct response rather than reporting EOF.
-    val e = prim-last-errno().int
-    if e == 4 || e == 11 then read(f, max) else b
+    // Empty is end of file only when the read did not fail.  `prim-read-error`
+    // answers for *that* call and is 0 on success; the process-wide `errno` is
+    // no use because nothing clears it.  Only the empty path pays the second
+    // call into C.
+    match prim-read-error().int
+      0  -> b               // a real end of file
+      // EINTR.  `kk_fio_read` already retries it, so this is belt and braces.
+      4  -> read(f, max)
+      // EAGAIN, from a descriptor someone else made non-blocking: retrying is
+      // the right response rather than reporting end of file.
+      11 -> read(f, max)
+      e  -> fail("cannot read from", "descriptor " ++ f.fd.show, e)
 
 // Read the whole file, in `chunk`-sized steps, up to `max-bytes`.
 //
@@ -264,7 +273,20 @@ pub fun kind( path : string ) : io path-kind
     1 -> RegularFile
     2 -> Directory
     3 -> Other
-    _ -> Missing
+    // 0 is not "missing", it is "the stat did not succeed"; which of those it
+    // is takes asking.
+    _ -> stat-failed(path)
+
+// A `stat` that fails is not the same as a path that is not there.  ENOENT and
+// ENOTDIR do say it is not there.  EACCES, ELOOP, ENAMETOOLONG and EIO say we
+// could not find out, and answering `Missing` to those tells the caller the
+// opposite of the truth -- so they throw, as every other failure here does.
+fun stat-failed( path : string ) : io path-kind
+  match prim-stat-error().int
+    0  -> Missing
+    2  -> Missing    // ENOENT: no such file or directory
+    20 -> Missing    // ENOTDIR: a component of the path is not a directory
+    e  -> fail("cannot stat", path, e)
 
 pub fun path-exists( path : string ) : io bool
   match path.kind
@@ -277,10 +299,17 @@ pub fun size( path : string ) : io int
   n
 
 // Modification time in whole seconds since the epoch.
+//
+// The sign carries no error: `st_mtime` is signed and a file older than 1970
+// has a negative one.  `prim-mtime` answers 0 for a failed stat, and 0 is also
+// the epoch itself, so that single value is the one worth asking about.
 pub fun modified-at( path : string ) : io int
   val t = prim-mtime(path).int
-  if t < 0 then fail("cannot stat", path, t)
-  t
+  if t != 0 then t
+  else
+    match prim-stat-error().int
+      0 -> 0
+      e -> fail("cannot stat", path, e)
 
 pub fun remove( path : string ) : io ()
   val r = prim-unlink(path).int
@@ -300,8 +329,9 @@ extern prim-close( fd : int32 ) : io int32
   c "kk_fio_close"
 extern prim-read( fd : int32, max : ssize_t ) : io any
   c "kk_fio_read"
-extern prim-last-errno() : io int32
-  c "kk_fio_last_errno"
+// Why the last `prim-read` came back empty; 0 if it did not fail.
+extern prim-read-error() : io int32
+  c "kk_fio_read_error"
 extern prim-write-all( fd : int32, data : any ) : io ssize_t
   c "kk_fio_write_all"
 extern prim-fsync( fd : int32 ) : io int32
@@ -314,6 +344,9 @@ extern prim-kind( path : string ) : io int32
   c "kk_fio_kind"
 extern prim-mtime( path : string ) : io int64
   c "kk_fio_mtime"
+// Why the last `prim-kind` or `prim-mtime` gave up; 0 if the stat succeeded.
+extern prim-stat-error() : io int32
+  c "kk_fio_stat_error"
 extern prim-rename( from : string, to : string ) : io int32
   c "kk_fio_rename"
 extern prim-unlink( path : string ) : io int32
