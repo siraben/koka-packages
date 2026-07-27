@@ -6,23 +6,23 @@ koka = ">=3.2,<4"
 [packages.bytes]
 kind = "path"
 path = "../../bytes"
-checksum = "sha256:de12bbb1f40812d4ddc74fa88e87005d82aa25d5c1f403991bc80e6cd83b0a03"
+checksum = "sha256:3b5258611fea4f92dfc1771a0b508e46d8d2d7c98fd651cb012e24f24d993cd3"
 dependencies = ["kktest"]
 
 [packages.hashmap]
 kind = "path"
 path = "../../hashmap"
-checksum = "sha256:3bc5315af9d6578ef56249bce02f1cc65cb9432a32db62f0ff51e48a000cc8d7"
+checksum = "sha256:d0829b048f5ebd8d12772e24af21064f70ada47e93b0f9565d4e3af7929ffad8"
 dependencies = ["kktest"]
 
 [packages.kktest]
 kind = "path"
 path = "../../kktest"
-checksum = "sha256:a6841b12d3085f9af3210c91dc680229f11628e3068d789f864d5b961ab776ef"
+checksum = "sha256:2666b82481b230a478e8a4dd0ceecd18fea4acf1e1d82cc2313121e205167c13"
 dependencies = []
 
 [packages.strbuilder]
 kind = "path"
 path = "../../strbuilder"
-checksum = "sha256:30ab0de52e220c5d518483e34179c3b830f5ecacb7fea7e2dd7a25ba719aaa15"
+checksum = "sha256:26e3f24aa0e2125799c1195ba851289de6bf2da43252f2f56b72287fda8c8003"
 dependencies = ["bytes", "kktest"]

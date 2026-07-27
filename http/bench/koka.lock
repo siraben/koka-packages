@@ -6,47 +6,47 @@ koka = ">=3.2,<4"
 [packages.bytes]
 kind = "path"
 path = "../../bytes"
-checksum = "sha256:6e929fb770d95a353181a79a501dd4b09e6afd78422b339a49c2bee0fb210638"
+checksum = "sha256:3b5258611fea4f92dfc1771a0b508e46d8d2d7c98fd651cb012e24f24d993cd3"
 dependencies = ["kktest"]
 
 [packages.hashmap]
 kind = "path"
 path = "../../hashmap"
-checksum = "sha256:5d692b43642463756516ee2e78d438e8119d692336228151f850f3275690691b"
+checksum = "sha256:d0829b048f5ebd8d12772e24af21064f70ada47e93b0f9565d4e3af7929ffad8"
 dependencies = ["kktest"]
 
 [packages.json]
 kind = "path"
 path = "../../json"
-checksum = "sha256:aa12f05e965163b09a9c00fc91c10b27b9ceb3c566e40ea26cde8b4f4c5f561f"
+checksum = "sha256:44fa4e2ea9af88b1df58da0eee778ebe5b37c63298150bc9b2d939536a5f052a"
 dependencies = ["bytes", "hashmap", "kktest", "strbuilder"]
 
 [packages.kktest]
 kind = "path"
 path = "../../kktest"
-checksum = "sha256:0211558fcfbd075a0100790a19a77e6ad85cfd756d33fe3e6271d6e3835a37a1"
+checksum = "sha256:2666b82481b230a478e8a4dd0ceecd18fea4acf1e1d82cc2313121e205167c13"
 dependencies = []
 
 [packages.logging]
 kind = "path"
 path = "../../logging"
-checksum = "sha256:22c1583b0e0b8a2c24b5d45cd07cd7d279aa5ad8eff8de25751f7f2c7375d538"
+checksum = "sha256:4b7440ab56eea3781152741c189ab94178a85b098a5c4b3ffdd030dbaa2cef1a"
 dependencies = ["json", "kktest", "strbuilder"]
 
 [packages.resource]
 kind = "path"
 path = "../../resource"
-checksum = "sha256:1694ddc310cd604554831179731da1c2f649b0cdfda6103a84020e68851d7057"
+checksum = "sha256:ae6411fb372363a8ffb18e910f49ec18ab130b7a6fe324df2b7285f08c59958f"
 dependencies = ["kktest"]
 
 [packages.runtime]
 kind = "path"
 path = "../../runtime"
-checksum = "sha256:dbb4b928556d17089cae9f446d3b8236010eb4580c3b87efb2ee0ec75f5453c4"
+checksum = "sha256:d5fc92ad65ced4b589f7fe47a16f4ec82152fcefe2062d30937e10c0a83f30f8"
 dependencies = ["bytes", "kktest", "resource"]
 
 [packages.strbuilder]
 kind = "path"
 path = "../../strbuilder"
-checksum = "sha256:65ef1c1780701eb47777e360436cb1ef605361fcd3c56213e95cddce3176df70"
+checksum = "sha256:26e3f24aa0e2125799c1195ba851289de6bf2da43252f2f56b72287fda8c8003"
 dependencies = ["bytes", "kktest"]
