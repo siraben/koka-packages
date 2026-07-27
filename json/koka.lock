@@ -6,23 +6,23 @@ koka = ">=3.2,<4"
 [packages.bytes]
 kind = "path"
 path = "../bytes"
-checksum = "sha256:1c825927ae517e5e680c2ee42ae024ac433402e572f379bd2a76ce31398937ce"
+checksum = "sha256:20465457be5bf6944e910dd505f15563ea578a267ef07bea64c5d672b3bcda7c"
 dependencies = ["kktest"]
 
 [packages.hashmap]
 kind = "path"
 path = "../hashmap"
-checksum = "sha256:5d692b43642463756516ee2e78d438e8119d692336228151f850f3275690691b"
+checksum = "sha256:1d30baa59b44d733cb11969917dcf6f8f2c1b018fe6385324c2a2c908dd8aae8"
 dependencies = ["kktest"]
 
 [packages.kktest]
 kind = "path"
 path = "../kktest"
-checksum = "sha256:0211558fcfbd075a0100790a19a77e6ad85cfd756d33fe3e6271d6e3835a37a1"
+checksum = "sha256:2666b82481b230a478e8a4dd0ceecd18fea4acf1e1d82cc2313121e205167c13"
 dependencies = []
 
 [packages.strbuilder]
 kind = "path"
 path = "../strbuilder"
-checksum = "sha256:e02d0954dad2f12a98cbdde9ca782891eeb0e0ec98f2927eade93b6e782c445a"
+checksum = "sha256:8334a58539ecb62f2edd3f016d287ead9db5d6084ba2526b9bfb230a600ca7b9"
 dependencies = ["bytes", "kktest"]

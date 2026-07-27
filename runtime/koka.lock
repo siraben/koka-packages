@@ -6,17 +6,17 @@ koka = ">=3.2,<4"
 [packages.bytes]
 kind = "path"
 path = "../bytes"
-checksum = "sha256:1c825927ae517e5e680c2ee42ae024ac433402e572f379bd2a76ce31398937ce"
+checksum = "sha256:20465457be5bf6944e910dd505f15563ea578a267ef07bea64c5d672b3bcda7c"
 dependencies = ["kktest"]
 
 [packages.kktest]
 kind = "path"
 path = "../kktest"
-checksum = "sha256:0211558fcfbd075a0100790a19a77e6ad85cfd756d33fe3e6271d6e3835a37a1"
+checksum = "sha256:2666b82481b230a478e8a4dd0ceecd18fea4acf1e1d82cc2313121e205167c13"
 dependencies = []
 
 [packages.resource]
 kind = "path"
 path = "../resource"
-checksum = "sha256:1694ddc310cd604554831179731da1c2f649b0cdfda6103a84020e68851d7057"
+checksum = "sha256:a4e18bcfa2f7dad46f04c6b6fd691e33d00252161547d41dd9eec2ca3f83eb57"
 dependencies = ["kktest"]

@@ -76,6 +76,28 @@ pub struct config
 pub val default-config : config
   = Config("127.0.0.1", 8080, 256, 15000, 30000, 100, 1024, 65536, default-limits, 128)
 
+// Check the invariants the serving loops rely on.
+//
+// In particular, `max-connections <= 0` used to make the accept loop sleep
+// forever without accepting, while `max-reads <= 0` made every request fail
+// before its first read.  Configuration mistakes should fail at startup, not
+// masquerade as an unresponsive server.
+pub fun validate-config( cfg : config ) : maybe<string>
+  if cfg.host.is-empty then Just("host must not be empty")
+  elif cfg.port < 0 || cfg.port > 65535 then Just("port must be between 0 and 65535")
+  elif cfg.max-connections <= 0 then Just("max-connections must be positive")
+  elif cfg.request-timeout-ms <= 0 then Just("request-timeout-ms must be positive")
+  elif cfg.idle-timeout-ms <= 0 then Just("idle-timeout-ms must be positive")
+  elif cfg.max-requests <= 0 then Just("max-requests must be positive")
+  elif cfg.max-reads <= 0 then Just("max-reads must be positive")
+  elif cfg.read-chunk <= 0 then Just("read-chunk must be positive")
+  elif cfg.backlog <= 0 then Just("backlog must be positive")
+  elif cfg.limits.max-request-line <= 0 then Just("max-request-line must be positive")
+  elif cfg.limits.max-header-bytes < 0 then Just("max-header-bytes must not be negative")
+  elif cfg.limits.max-headers < 0 then Just("max-headers must not be negative")
+  elif cfg.limits.max-body < 0 then Just("max-body must not be negative")
+  else Nothing
+
 // How the server logs.  Passed as values because the logger handler is
 // installed per connection; see the module header.
 pub struct log-config
@@ -118,6 +140,13 @@ pub fun serve( serve-request : (request) -> <async,logger|io> response,
                ready : (server) -> <async|io> (),
                cfg : config = default-config,
                logs : log-config = default-log-config ) : io ()
+  match cfg.validate-config
+    Just(msg) -> throw("invalid HTTP server configuration: " ++ msg)
+    Nothing  -> serve-valid(serve-request, ready, cfg, logs)
+
+fun serve-valid( serve-request : (request) -> <async,logger|io> response,
+                 ready : (server) -> <async|io> (),
+                 cfg : config, logs : log-config ) : io ()
   // The listener is managed explicitly rather than with `with-listener`.
   // `finally` around a computation that drives the task scheduler closed the
   // listening socket while the server was still running; the scheduler runs

@@ -8,8 +8,9 @@ is a parameter and is enforced *while* parsing, so a hostile document is
 refused before it costs anything, and every failure carries a byte offset, a
 line and a column.  It is deliberately *not* a serialisation framework: there
 is no derivation of encoders and decoders from types, no schema validation, no
-JSON Pointer or JSONPath, no streaming or incremental parse, no pretty printing,
-and no floating-point numbers.
+JSONPath, no streaming or incremental parse, no pretty printing, and no
+floating-point numbers.  RFC 6901 JSON Pointer lookup and construction are
+provided separately in `json/pointer`.
 
 ## Public API
 
@@ -30,6 +31,19 @@ and no floating-point numbers.
 
 Every accessor returns `:maybe` rather than throwing, so a decoder can collect
 all of a document's problems and report them in its own terms.
+
+### `json/pointer` — RFC 6901 paths
+
+| declaration | signature | what it is |
+| --- | --- | --- |
+| `pointer` | `(root : json, path : string) : maybe<json>` | Look up a string-form JSON Pointer.  `""` names the root; malformed syntax, missing members and out-of-range indexes return `Nothing` |
+| `pointer-token` | `(token : string) : string` | Escape `~` and `/` in one reference token |
+| `pointer-path` | `(tokens : list<string>) : string` | Build a pointer from unescaped tokens; `[]` produces `""` |
+
+Array indexes are canonical non-negative decimals: `0` is accepted, while
+`00`, signs, `-`, overflow and non-digits are rejected.  This module implements
+the JSON string representation (`/items/0`), not the URI fragment
+representation (`#/items/0`); percent-decoding belongs at the URI layer.
 
 ### `json/parse` — the parser
 
@@ -78,6 +92,7 @@ all of a document's problems and report them in its own terms.
 | duplicate-key detection | O(1) per member, amortized, via a hash set |
 | `DuplicateLast` | O(members) for the member it replaces, so O(n·d) for `d` duplicates |
 | `member` on an object of `k` members | O(k) — an association list, not a map |
+| `pointer` over `t` tokens | O(t + visited object members + visited array indexes) |
 | `show` / `write` over a value of n characters | O(n), through `strbuilder` |
 | `line-col` when reporting an error | O(offset), and only on the failure path |
 | UTF-8 validation | O(n), once, before parsing |
@@ -111,6 +126,7 @@ Reproduce with `./run-benchmarks.sh json` from the repository root.
 import bytes/bytes
 import json/value
 import json/parse
+import json/pointer
 
 fun main()
   // Parsing, with the failure carrying a position.
@@ -141,6 +157,9 @@ fun main()
   val doc = obj([("ok", boolean(True)), ("count", num(3)),
                  ("note", str("says \"hi\""))])
   println(doc.show)                 // {"ok":true,"count":3,"note":"says \"hi\""}
+  match doc.pointer("/count")
+    Just(JsInt(n)) -> println("count via pointer: " ++ n.show)
+    _              -> println("count was missing or not an integer")
 ```
 
 ## Limits

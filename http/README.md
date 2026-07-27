@@ -61,6 +61,7 @@ have worked — which is why the router, not the handler, decides that.
 | --- | --- | --- |
 | `config` | `struct { host; port; max-connections; request-timeout-ms; idle-timeout-ms; max-requests; max-reads; read-chunk; limits; backlog }` | |
 | `default-config` | `: config` | 127.0.0.1:8080, 256 connections, 15 s / 30 s timeouts, 100 requests and 1024 reads per connection, 64 KiB reads, backlog 128 |
+| `validate-config` | `(cfg : config) : maybe<string>` | `Nothing` when the serving-loop invariants hold; otherwise a specific startup error |
 | `log-config` | `struct { emit; min : level; base : list<field> }` | Passed as values, because the logger handler is installed per connection |
 | `default-log-config` | `: log-config` | Writes to **stdout** at `Info` |
 | `server` | `struct { group; bound; stopping }` | |
@@ -89,6 +90,10 @@ Everything.  A connection that misbehaves costs a bounded amount:
 | `max-header-bytes` | 16 KiB | bounds the header block alone |
 | `max-headers` | 100 | bounds per-header work |
 | `max-body` | 1 MiB | bounds one request body |
+
+`serve` validates these values and the serving-loop controls before binding.
+Zero or negative connection/read limits therefore fail at startup instead of
+turning into a server that spins, sleeps forever, or rejects every first read.
 
 Framing rules, all of them deliberate: line endings must be CRLF, because an
 intermediary that accepts one where we accept the other is how requests get
@@ -195,6 +200,12 @@ Serving is `serve-routes(routes, ready)`, where `ready` is called once with the
 running server and the server shuts down when it returns.  See
 `koka-examples/notes-service` for a complete one.
 
+## Tests
+
+The package integration suite binds ephemeral loopback ports and covers split
+reads, pipelining, malformed-request containment, handler failure containment,
+per-connection request limits, configuration rejection, and orderly shutdown.
+
 ## Limits
 
 * **No chunked request bodies.**  `Transfer-Encoding` is answered with 501, not
@@ -204,11 +215,6 @@ running server and the server shuts down when it returns.  See
   `max-body`.  There is no streaming request body.
 * **The response body is a `:bytes` in memory.**  No `sendfile`, no streaming
   writer.
-* **`http/server` has no package-level test.**  The accept loop, connection
-  lifecycle, timeouts and shutdown — the source of most of the bugs in the work
-  log — are covered by the reference service's integration suite in
-  `koka-examples/notes-service`, which CI runs.  `http/message` and
-  `http/router` are tested here.
 * **The router is a linear scan with literal segments and `:name` captures.**
   No wildcards, no regular expressions, no optional segments, no trailing-slash
   normalisation.  Five routes is what it was built for.

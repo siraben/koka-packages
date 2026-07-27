@@ -204,6 +204,13 @@ fun main()
     g.cancel
 ```
 
+## Tests
+
+The package test suite exercises `runtime/loop` directly as well as through
+`runtime/task` and `runtime/net`: request-id monotonicity, completion queue
+draining, timer cancellation, structured libuv failures, listener kind safety,
+and cancel/re-arm behavior are pinned at the primitive boundary.
+
 ## Limits
 
 * **Nothing may busy-wait.**  `run-loop` drains libuv completions only when the
@@ -234,6 +241,3 @@ fun main()
 * **The libuv completion queue has no explicit cap.**  It is bounded in
   practice by the number of outstanding requests, which `http/server`'s limits
   bound in turn — but this package on its own does not bound it.
-* **`runtime/loop` has no package-level test.**  It is exercised through
-  `runtime/task`'s and `runtime/net`'s tests and by the reference service's
-  integration suite in `koka-examples/notes-service`.
