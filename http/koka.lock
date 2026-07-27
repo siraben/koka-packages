@@ -12,13 +12,13 @@ dependencies = ["kktest"]
 [packages.hashmap]
 kind = "path"
 path = "../hashmap"
-checksum = "sha256:1d30baa59b44d733cb11969917dcf6f8f2c1b018fe6385324c2a2c908dd8aae8"
+checksum = "sha256:bfd1aaf9f7b22061a850ddcdce6206730827512418197629ec8af6a581b0316f"
 dependencies = ["kktest"]
 
 [packages.json]
 kind = "path"
 path = "../json"
-checksum = "sha256:5ca41c9a6d3e484a17dd138e692f88177d2ffd3f4abc47e10defe6a2e4aab2ba"
+checksum = "sha256:87524f2987df913efc24c5ef3277d0fa5fbc64ca18635acdde7beee862b0b295"
 dependencies = ["bytes", "hashmap", "kktest", "strbuilder"]
 
 [packages.kktest]
@@ -30,19 +30,19 @@ dependencies = []
 [packages.logging]
 kind = "path"
 path = "../logging"
-checksum = "sha256:a41308bc79fbf3f2ad84afcd71cdcce20072da746a7edf6e16f8d446f54962d3"
+checksum = "sha256:72948d21ada892dc752c9395372df1194ea7b2a2950f2ab44af090d7fd08b0a7"
 dependencies = ["json", "kktest", "strbuilder"]
 
 [packages.resource]
 kind = "path"
 path = "../resource"
-checksum = "sha256:a4e18bcfa2f7dad46f04c6b6fd691e33d00252161547d41dd9eec2ca3f83eb57"
+checksum = "sha256:f7a8c5e18a0d12a019e7cb522eb2c4bcda579b24644bfbed69b3945ce7ec6278"
 dependencies = ["kktest"]
 
 [packages.runtime]
 kind = "path"
 path = "../runtime"
-checksum = "sha256:1ff92222445427f3aaaa2aea06eae51ddc660bb9146519f5aff09508e5306d34"
+checksum = "sha256:8cef721e24fb0ea5a23e798bf09c4e3c3c35b142edc468598a39935fdc504391"
 dependencies = ["bytes", "kktest", "resource"]
 
 [packages.strbuilder]

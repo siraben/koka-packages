@@ -18,5 +18,5 @@ dependencies = []
 [packages.resource]
 kind = "path"
 path = "../resource"
-checksum = "sha256:a4e18bcfa2f7dad46f04c6b6fd691e33d00252161547d41dd9eec2ca3f83eb57"
+checksum = "sha256:f7a8c5e18a0d12a019e7cb522eb2c4bcda579b24644bfbed69b3945ce7ec6278"
 dependencies = ["kktest"]
