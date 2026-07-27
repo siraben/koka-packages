@@ -96,6 +96,10 @@ fun main()
         val t = tracker()
         with-owned({ open-fake(t, "a") }, fn(x) close-fake(t, x), fn(h)
           assert-equal(h.with-value(fn(x) x), "a")
+          // `get` on a live handle: the other half of the pair whose released
+          // case is tested below, and the one that says the flag is read the
+          // right way round rather than merely consistently
+          assert-equal(h.get, "a")
           assert-false(h.is-released)
         )
       ),
