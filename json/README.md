@@ -88,15 +88,15 @@ so `units/s` reads as KiB/s:
 
 | what | n (KiB) | ms | units/s |
 | --- | ---: | ---: | ---: |
-| parse, array of 200 objects | 15 001 | 1 321 | 11 355 |
-| parse, array of 20k objects | 16 558 | 1 546 | 10 710 |
-| parse, flat object, 20k keys | 6 597 | 873 | 7 556 |
+| parse, array of 200 objects | 15 001 | 1 489 | 10 074 |
+| parse, array of 20k objects | 16 558 | 1 514 | 10 936 |
+| parse, flat object, 20k keys | 6 597 | 761 | 8 668 |
 | generate, array of 200 objects | 15 001 | 261 | 57 475 |
 | generate, array of 20k objects | 16 558 | 275 | 60 210 |
 | generate, flat object, 20k keys | 6 597 | 125 | 52 776 |
 
-Parsing runs at about 11 MiB/s and generation at about 56 MiB/s.  Parsing a
-document a hundred times larger costs the same *per byte* — 11.1 against 10.5
+Parsing runs at about 10 MiB/s and generation at about 56 MiB/s.  Parsing a
+document a hundred times larger costs the same *per byte* — 10.1 against 10.9
 MiB/s — which is what O(n) means here, and is the point of the seen-key set: an
 earlier version scanned the accumulated members for each key, and a 99 KB
 object of distinct keys (a tenth of `max-bytes`, and exactly at `max-members`)
@@ -167,7 +167,16 @@ fun main()
 * **The whole document is validated as UTF-8 before parsing**, which is a
   second pass over the input.  It is what makes the string scanner able to copy
   multi-byte sequences through without re-checking them.
-* **Parsing runs at about 11 MiB/s**, which is an order of magnitude off a
-  tuned C parser.  The cost is in reading the input one octet at a time through
-  `bytes/at`.  Nothing here has needed more, and the limits bound what one
+* **Parsing runs at about 10 MiB/s**, which is an order of magnitude off a
+  tuned C parser.  Nothing here has needed more, and the limits bound what one
   document can cost, but it is a real ceiling.
+* **The position lives in a handler, not in a threaded state record.**  That is
+  what lets the grammar read as a sequence of steps rather than a chain of
+  `either` matches, and it costs about 10 ns per operation — roughly ten times
+  a plain byte read — because Koka resolves a handler operation through the
+  evidence vector and an indirect call, with no specialisation for a statically
+  known handler.  So no per-byte work crosses that boundary: the scanners take
+  the input and offset once, scan locally, and move the cursor once.  Measured
+  against the previous threaded-state parser this is 88% of its throughput on
+  array-heavy input and 125% on key-heavy input, the latter because run-copying
+  strings is a win the old one did not have.
