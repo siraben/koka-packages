@@ -62,6 +62,16 @@ fun main()
         val ls = capture({ debug("d"); info("i"); warn("w") }, Error)
         assert-equal(ls.length, 0)
       ),
+      test("a scoped minimum composes with the destination minimum", fn()
+        val ls = capture({
+          info("outside")
+          with-min-level(Warn, { debug("d"); info("i"); warn("w"); error("e") })
+          info("after")
+        }, Info)
+        assert-equal(ls.length, 4)
+        assert-true(ls.any(fn(l) l.contains("\"msg\":\"w\"")))
+        assert-false(ls.any(fn(l) l.contains("\"msg\":\"i\"")))
+      ),
     ]),
 
     group("context", [
@@ -93,6 +103,26 @@ fun main()
         val line = ls.head.default("")
         assert-true(line.contains("\"a\":\"1\""), line)
         assert-true(line.contains("\"b\":\"2\""), line)
+      ),
+      test("redaction covers call-site and nested context fields", fn()
+        val ls = capture({
+          with-redaction(["password","token"], {
+            with-context([("token","context-secret")], {
+              info("login", [("user","alice"),("password","call-secret")])
+            })
+          })
+        }, Debug)
+        val line = ls.head.default("")
+        assert-true(line.contains("\"token\":\"[REDACTED]\""), line)
+        assert-true(line.contains("\"password\":\"[REDACTED]\""), line)
+        assert-true(line.contains("\"user\":\"alice\""), line)
+        assert-false(line.contains("context-secret"), line)
+        assert-false(line.contains("call-secret"), line)
+      ),
+      test("redact-fields preserves order and supports a custom marker", fn()
+        val fs = redact-fields([("a","1"),("secret","x"),("b","2")],
+                               ["secret"], "***")
+        assert-equal(fs.show, [("a","1"),("secret","***"),("b","2")].show)
       ),
     ]),
 

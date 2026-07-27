@@ -122,6 +122,27 @@ fun main()
           write-text-file(p, "a")
           assert-throws({ open(p, create-new) }, containing = "cannot open")
       ),
+      test("invalid read sizes fail instead of looking like end of file", fn()
+        in-dir fn(d)
+          val p = d ++ "/sizes.txt"
+          write-text-file(p, "abc")
+          with-file(p) fn(f)
+            assert-throws({ f.read(-1) }, containing = "must not be negative")
+            assert-throws({ f.read-all(0) }, containing = "must be positive")
+            assert-throws({ f.stream(fn(_b) (), 0) }, containing = "must be positive")
+      ),
+      test("invalid open modes and permissions are rejected", fn()
+        in-dir fn(d)
+          val p = d ++ "/invalid.txt"
+          assert-throws({
+            open(p, Open-mode(True, False, False, False, False, True))
+          }, containing = "exclusive open requires create")
+          assert-throws({
+            open(p, Open-mode(True, False, False, True, False, False))
+          }, containing = "truncate open requires write")
+          assert-throws({ open(p, write-only, -1) }, containing = "permissions")
+          assert-false(path-exists(p))
+      ),
     ]),
 
     group("atomic replacement", [
@@ -155,6 +176,14 @@ fun main()
           // touching the original
           assert-throws({ replace-text-file(d ++ "/missing/r.txt", "x") })
           assert-equal(read-text-file(p), "keep me")
+      ),
+      test("applies requested permissions", fn()
+        in-dir fn(d)
+          val p = d ++ "/mode.txt"
+          replace-text-file(p, "private", 384) // 0600
+          assert-equal(permissions(p), 384)
+          replace-text-file(p, "shared", 420) // 0644
+          assert-equal(permissions(p), 420)
       ),
     ]),
 
@@ -208,6 +237,16 @@ fun main()
           val p = d ++ "/sz.txt"
           write-text-file(p, "12345")
           assert-equal(size(p), 5)
+      ),
+      test("permissions can be inspected and changed", fn()
+        in-dir fn(d)
+          val p = d ++ "/perms.txt"
+          write-text-file(p, "x")
+          set-path-permissions(p, 384) // 0600
+          assert-equal(permissions(p), 384)
+          with-file(p, fn(f) f.set-permissions(420))
+          assert-equal(permissions(p), 420)
+          assert-throws({ set-path-permissions(p, 4096) }, containing = "permissions")
       ),
       test("modification time is plausible", fn()
         in-dir fn(d)

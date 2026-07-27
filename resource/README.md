@@ -25,6 +25,7 @@ not an async resource manager — see the limits below, and `runtime/task`'s
 | `scope` | `struct { entries : ref<global, list<() -> io ()>> }` | A scope holding several resources |
 | `with-scope` | `(action : (scope) -> io a) : io a` | Run `action` in a fresh scope; everything acquired in it is released on exit |
 | `acquire` | `(s : scope, get-it : () -> io a, release : (a) -> io ()) : io a` | Acquire inside a scope |
+| `acquire-owned` | `(s : scope, get-it : () -> io a, release : (a) -> io ()) : io owned<a>` | Acquire into a scope with early release and use-after-release checks |
 | `on-exit` | `(s : scope, action : () -> io ()) : io ()` | Register a scope-exit action without acquiring anything |
 
 Use `with-resource` when the number of resources is known and fixed — nested
@@ -65,6 +66,7 @@ under a cancellation handler.
 | `with-resource` | O(1) — one `finally` frame |
 | `with-owned` | O(1) — one `finally` frame plus one `ref` |
 | `acquire` in a scope | O(1) — a cons onto the entry list |
+| `acquire-owned` in a scope | O(1) — one `ref` plus a registered idempotent release |
 | `with-scope` exit, `k` resources | O(k) time, and **O(k) stack**: the releases are nested `finally` frames |
 
 Measured on this machine (AMD Ryzen 9 5950X, 32 threads, 126 GiB, Linux 7.0.1
@@ -116,6 +118,12 @@ fun main()
     s.on-exit({ println("scope is done") })
     println("all three are open")
   // -> closed c, b, a, after "scope is done"
+
+  // Dynamic acquisition can still return an individually releasable handle.
+  with-scope fn(s)
+    val h = s.acquire-owned({ open-thing("dynamic") }, close-thing)
+    h.with-value(fn(n) println("using " ++ n))
+    h.release-owned // scope exit is now a no-op for this handle
 
   // An owned handle, for a resource that must be released early.
   with-owned({ open-thing("early") }, close-thing) fn(h)

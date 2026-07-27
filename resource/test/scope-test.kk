@@ -151,6 +151,25 @@ fun main()
           ()
         assert-equal(t.events.show, ["exit hook"].show)
       ),
+      test("acquire-owned supports early release without double release", fn()
+        val t = tracker()
+        with-scope fn(s)
+          val h = s.acquire-owned({ open-fake(t, "a") }, fn(x) close-fake(t, x))
+          assert-equal(h.get, "a")
+          h.release-owned
+          assert-true(h.is-released)
+          assert-throws({ h.get }, containing = "use after release")
+        assert-equal(t.events.show, ["open a","close a"].show)
+      ),
+      test("acquire-owned releases on exceptional scope exit", fn()
+        val t = tracker()
+        assert-throws({
+          with-scope fn(s)
+            s.acquire-owned({ open-fake(t, "a") }, fn(x) close-fake(t, x))
+            throw("scope failed")
+        }, containing = "scope failed")
+        assert-equal(t.events.show, ["open a","close a"].show)
+      ),
       test("a failing release does not stop the others", fn()
         val t = tracker()
         assert-throws({ failing-release(t) }, containing = "release failed")

@@ -26,6 +26,9 @@ attach a value that is not already a string.
 | `debug` / `info` / `warn` / `error` | `(message : string, fields : list<field> = []) : <logger\|e> ()` | |
 | `with-json-logger` | `(emit : (string) -> <io\|e> (), action : () -> <logger,io\|e> a, min : level = Info, base-fields : list<field> = [], now : () -> <io\|e> int = default-clock) : <io\|e> a` | Emit line-delimited JSON through `emit`, dropping anything below `min` |
 | `with-context` | `(extra : list<field>, action : () -> <logger\|e> a) : <logger\|e> a` | Add fields to every record `action` produces |
+| `with-min-level` | `(min : level, action : () -> <logger\|e> a) : <logger\|e> a` | Raise the minimum for a nested region while retaining the outer destination |
+| `redact-fields` | `(fields, names, replacement = "[REDACTED]") : div list<field>` | Replace matching values without reordering fields |
+| `with-redaction` | `(names, action, replacement = "[REDACTED]") : <logger,div\|e> a` | Redact call-site and nested-context fields in a region |
 | `with-no-logger` | `(action : () -> <logger\|e> a) : e a` | Discard everything.  For tests that exercise a path without caring about output |
 | `render` | `(lvl : level, message : string, fields : list<field>, at : int) : div string` | One record as one JSON object, without a handler |
 | `default-clock` | `() : <io\|e> int` | Milliseconds since the epoch |
@@ -58,6 +61,8 @@ passes, and the outer handler's `base-fields` come before both.
 | `log` / `info` / … below `min` | O(1) — the record is never rendered |
 | `render` with `k` fields totalling `m` characters | O(m + k), one pass through `strbuilder` |
 | `with-context` | O(1) to install, O(k) per record to prepend `k` fields |
+| `with-min-level` | O(1) per record |
+| `with-redaction` with `k` fields and `r` names | O(k·r) per record |
 | `with-json-logger` | O(1) to install; each record costs one `render` plus one `emit` |
 | `log-base-fields` under `d` nested contexts | O(d) — each `override` appends to what the one outside it returned |
 
@@ -120,6 +125,12 @@ fun main()
   with-json-logger(fn(line) println(line),
                    { debug("not emitted", []) },
                    Info, [], { 1700000000000 })
+
+  // Local policy composes with the same destination and context.
+  with-json-logger(fn(line) println(line), {
+    with-min-level(Warn, { info("dropped"); warn("kept") })
+    with-redaction(["token"], { info("login", [("token", "secret")]) })
+  })
 ```
 
 ## Limits
@@ -127,6 +138,10 @@ fun main()
 * **Field values are strings.**  There is no `json`-valued field, so a nested
   object has to be rendered by the caller.  `int/field` and `bool/field` are
   the only conveniences.
+* **Redaction is name-based and scoped.** `with-redaction` covers fields
+  supplied by calls and inner `with-context` handlers. It cannot rewrite the
+  destination handler's own `base-fields`, which are outside the scoped
+  override; secrets should not be configured there.
 * **Rendering costs about 3.9 µs for a record with eight fields.**  That is one
   log line per request, not one per loop iteration.  See the numbers above and
   `strbuilder`'s note about `append-json-escaped`.

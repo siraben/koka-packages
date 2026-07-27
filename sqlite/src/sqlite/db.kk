@@ -122,6 +122,7 @@ fun fail( what : string, code : int ) : io a
 
 // Open (or create) a database.  Use ":memory:" for an in-process database.
 pub fun open( path : string, busy-ms : int = 5000 ) : io database
+  if busy-ms < 0 then throw("sqlite: busy timeout must not be negative")
   val id = prim-open(path).int
   if id < 0 then fail("cannot open " ++ path.show, id)
   val d = Database(id)
@@ -134,14 +135,19 @@ pub fun close( d : database ) : io ()
   prim-close(d.conn.int64)
   ()
 
+// Whether this handle still names an open connection.
+pub fun is-open( d : database ) : io bool
+  prim-is-open(d.conn.int64).int == 1
+
 pub fun with-database( path : string, action : (database) -> io a,
                        busy-ms : int = 5000 ) : io a
   with-resource({ open(path, busy-ms) }, close, action)
 
 // How long to wait for another process's write lock before reporting `Busy`.
 pub fun busy-timeout( d : database, ms : int ) : io ()
-  prim-busy-timeout(d.conn.int64, ms.int32)
-  ()
+  if ms < 0 then throw("sqlite: busy timeout must not be negative")
+  val rc = prim-busy-timeout(d.conn.int64, ms.int32).int
+  if rc < 0 then fail("cannot set busy timeout", rc)
 
 // Run SQL with no result rows: migrations, pragmas, DDL.
 pub fun execute( d : database, sql : string ) : io ()
@@ -149,9 +155,11 @@ pub fun execute( d : database, sql : string ) : io ()
   if rc < 0 then fail("cannot execute", rc)
 
 pub fun last-insert-id( d : database ) : io int
+  if !d.is-open then fail("connection is closed", 21) // SQLITE_MISUSE
   prim-last-insert-id(d.conn.int64).int
 
 pub fun changes( d : database ) : io int
+  if !d.is-open then fail("connection is closed", 21) // SQLITE_MISUSE
   prim-changes(d.conn.int64).int
 
 // ----------------------------------------------------------------------------
@@ -167,6 +175,10 @@ pub fun prepare( d : database, sql : string ) : io statement
 pub fun finalize( s : statement ) : io ()
   prim-finalize(s.stmt.int64)
   ()
+
+// Whether this handle has been finalized, directly or by closing its database.
+pub fun is-finalized( s : statement ) : io bool
+  prim-is-finalized(s.stmt.int64).int == 1
 
 // Prepare, use, finalize -- on success, on failure, and on cancellation.
 pub fun with-statement( d : database, sql : string,
@@ -297,37 +309,87 @@ pub fun with-transaction( d : database, action : () -> io a ) : io a
       try({ d.execute("ROLLBACK") })
       throw-exn(ex)
 
+// A composable transaction scope. Savepoints can be nested, including inside
+// `with-transaction`; SQLite resolves the repeated internal name to the most
+// recently opened savepoint.
+pub fun with-savepoint( d : database, action : () -> io a ) : io a
+  d.execute("SAVEPOINT koka_package_savepoint")
+  match try({ val x = action(); d.execute("RELEASE koka_package_savepoint"); x })
+    Ok(x)     -> x
+    Error(ex) ->
+      try({ d.execute("ROLLBACK TO koka_package_savepoint");
+            d.execute("RELEASE koka_package_savepoint") })
+      throw-exn(ex)
+
 // ----------------------------------------------------------------------------
 // migrations
 // ----------------------------------------------------------------------------
 
-// One schema step.  `version` must be stable and increasing; it is what
-// records that the step has run.
+// One schema step. `version` must be stable and unique; `migrate` sorts the
+// input, so declaration order is not significant.
 pub struct migration
   version : int
   name    : string
   sql     : string
 
 // Apply every migration that has not run yet, each in its own transaction, in
-// ascending version order.  Running this twice is a no-op.
+// ascending version order. Duplicate input versions and a changed name for an
+// already-recorded version are rejected. Running this twice is a no-op.
 pub fun migrate( d : database, migrations : list<migration> ) : io list<string>
+  val ordered = sort-migrations(migrations)
+  validate-migrations(ordered)
   d.execute("CREATE TABLE IF NOT EXISTS schema_migrations (" ++
             "id INTEGER PRIMARY KEY, name TEXT NOT NULL)")
   // `filter-map`, not a `-1` for a row that does not look like a version: a
   // sentinel version is a version, and it would compare equal to a migration
   // that happened to declare it.
-  val applied = d.query("SELECT id FROM schema_migrations").filter-map(fn(r) r.int-at("id"))
-  migrations.foldl([], fn(done, m) apply-one(d, applied, done, m))
+  val applied = d.query("SELECT id, name FROM schema_migrations").filter-map(applied-row)
+  ordered.foldl([], fn(done, m) apply-one(d, applied, done, m))
 
-fun apply-one( d : database, applied : list<int>, done : list<string>,
+alias applied-migration = (int, string)
+
+fun applied-row( r : row ) : div maybe<applied-migration>
+  match (r.int-at("id"), r.text-at("name"))
+    (Just(id), Just(name)) -> Just((id, name))
+    _                      -> Nothing
+
+fun sort-migrations( migrations : list<migration> ) : div list<migration>
+  migrations.foldl([], insert-migration)
+
+fun insert-migration( ordered : list<migration>, m : migration ) : div list<migration>
+  match ordered
+    Nil -> [m]
+    Cons(x, xs) ->
+      if m.version < x.version then Cons(m, ordered)
+      else Cons(x, insert-migration(xs, m))
+
+fun validate-migrations( ordered : list<migration> ) : <div,exn> ()
+  match ordered
+    Cons(a, Cons(b, _)) ->
+      if a.version == b.version then
+        throw("sqlite: duplicate migration version " ++ a.version.show)
+      validate-migrations(ordered.tail)
+    _ -> ()
+
+fun applied-name( applied : list<applied-migration>, version : int ) : div maybe<string>
+  match applied
+    Nil -> Nothing
+    Cons(a, rest) -> if a.fst == version then Just(a.snd) else applied-name(rest, version)
+
+fun apply-one( d : database, applied : list<applied-migration>, done : list<string>,
                m : migration ) : io list<string>
-  if applied.any(fn(i) i == m.version) then done
-  else
-    with-transaction(d) fn()
-      d.execute(m.sql)
-      d.run("INSERT INTO schema_migrations (id, name) VALUES (?, ?)",
-            [SqlInt(m.version), SqlText(m.name)])
-    done ++ [m.name]
+  match applied-name(applied, m.version)
+    Just(recorded-name) ->
+      if !(recorded-name == m.name) then
+        throw("sqlite: migration " ++ m.version.show ++ " was recorded as " ++
+              recorded-name.show ++ " but is now named " ++ m.name.show)
+      done
+    Nothing ->
+      with-transaction(d) fn()
+        d.execute(m.sql)
+        d.run("INSERT INTO schema_migrations (id, name) VALUES (?, ?)",
+              [SqlInt(m.version), SqlText(m.name)])
+      done ++ [m.name]
 
 // ----------------------------------------------------------------------------
 // diagnostics
@@ -352,6 +414,8 @@ extern prim-open( path : string ) : io int64
   c "kk_sq_open"
 extern prim-close( db : int64 ) : io int32
   c "kk_sq_close"
+extern prim-is-open( db : int64 ) : io int32
+  c "kk_sq_is_open"
 extern prim-exec( db : int64, sql : string ) : io int32
   c "kk_sq_exec"
 extern prim-busy-timeout( db : int64, ms : int32 ) : io int32
@@ -366,6 +430,8 @@ extern prim-prepare( db : int64, sql : string ) : io int64
   c "kk_sq_prepare"
 extern prim-finalize( s : int64 ) : io int32
   c "kk_sq_finalize"
+extern prim-is-finalized( s : int64 ) : io int32
+  c "kk_sq_is_finalized"
 extern prim-reset( s : int64 ) : io int32
   c "kk_sq_reset"
 extern prim-bind-int( s : int64, idx : int32, v : int64 ) : io int32

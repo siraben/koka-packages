@@ -50,10 +50,21 @@ fun main()
       test("closing twice is not an error, and does not double-release", fn()
         val before = open-connections()
         val d = db/open(":memory:")
+        assert-true(d.is-open)
         assert-equal(open-connections(), before + 1)
         d.close
+        assert-false(d.is-open)
         d.close
         // the point of the test: the second close must not decrement again
+        assert-equal(open-connections(), before)
+      ),
+      test("invalid busy timeouts are rejected", fn()
+        mem fn(d)
+          assert-throws({ d.busy-timeout(-1) }, containing = "must not be negative")
+      ),
+      test("an invalid timeout does not leak a newly opened connection", fn()
+        val before = open-connections()
+        assert-throws({ db/open(":memory:", -1) }, containing = "must not be negative")
         assert-equal(open-connections(), before)
       ),
       test("a file-backed database persists", fn()
@@ -106,6 +117,14 @@ fun main()
             s.step
             ()
           assert-equal(d.query("SELECT id FROM items").length, 2)
+      ),
+      test("statement lifetime can be inspected", fn()
+        mem fn(d)
+          val s = d.prepare("SELECT 1")
+          assert-false(s.is-finalized)
+          s.finalize
+          assert-true(s.is-finalized)
+          s.finalize
       ),
       test("last-insert-id and changes", fn()
         mem fn(d)
@@ -232,6 +251,30 @@ fun main()
           d.run("INSERT INTO items (name, qty) VALUES (?, ?)", [SqlText("after"), SqlInt(1)])
           assert-equal(d.query("SELECT id FROM items").length, 1)
       ),
+      test("savepoints compose inside a transaction", fn()
+        mem fn(d)
+          d.schema
+          with-transaction(d) fn()
+            d.run("INSERT INTO items (name, qty) VALUES ('outer', 1)", [])
+            assert-throws({
+              with-savepoint(d) fn()
+                d.run("INSERT INTO items (name, qty) VALUES ('inner', 2)", [])
+                throw("discard inner")
+            }, containing = "discard inner")
+            d.run("INSERT INTO items (name, qty) VALUES ('after', 3)", [])
+          val names = d.query("SELECT name FROM items ORDER BY id")
+                       .filter-map(fn(r) r.text-at("name"))
+          assert-equal(names.show, ["outer","after"].show)
+      ),
+      test("savepoints can be nested", fn()
+        mem fn(d)
+          d.schema
+          with-savepoint(d) fn()
+            d.run("INSERT INTO items (name, qty) VALUES ('a', 1)", [])
+            with-savepoint(d) fn()
+              d.run("INSERT INTO items (name, qty) VALUES ('b', 2)", [])
+          assert-equal(d.query("SELECT id FROM items").length, 2)
+      ),
     ]),
 
     group("migrations", [
@@ -264,6 +307,23 @@ fun main()
           assert-throws({ migrate(d, bad) })
           // the first migration committed, the second did not
           assert-equal(d.query("SELECT id FROM schema_migrations").length, 1)
+      ),
+      test("unordered migrations are applied by version", fn()
+        mem fn(d)
+          val ms = [ Migration(2, "add column", "ALTER TABLE t ADD COLUMN y INTEGER")
+                   , Migration(1, "create table", "CREATE TABLE t (x INTEGER)") ]
+          assert-equal(migrate(d, ms).show, ["create table","add column"].show)
+          d.run("INSERT INTO t (x, y) VALUES (1, 2)", [])
+      ),
+      test("duplicate versions and renamed history are rejected", fn()
+        mem fn(d)
+          val dup = [ Migration(1, "one", "CREATE TABLE a (x INTEGER)")
+                    , Migration(1, "again", "CREATE TABLE b (x INTEGER)") ]
+          assert-throws({ migrate(d, dup) }, containing = "duplicate migration version")
+          migrate(d, [Migration(2, "original", "CREATE TABLE c (x INTEGER)")])
+          assert-throws({
+            migrate(d, [Migration(2, "renamed", "CREATE TABLE c (x INTEGER)")])
+          }, containing = "was recorded as")
       ),
     ]),
   ])

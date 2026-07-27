@@ -110,6 +110,36 @@ pub fun with-context( extra : list<field>, action : () -> <logger|e> a ) : <logg
     fun log-record(lvl, message, fields) log-record(lvl, message, extra ++ fields)
   action()
 
+// Raise the minimum level for a region without choosing a new destination.
+// This composes with the outer handler: a record must pass this filter and the
+// destination handler's own minimum.
+pub fun with-min-level( min : level, action : () -> <logger|e> a ) : <logger|e> a
+  val outer = log-base-fields()
+  with override
+    fun log-base-fields() outer
+    fun log-record(lvl, message, fields)
+      if lvl.severity >= min.severity then log-record(lvl, message, fields)
+  action()
+
+// Replace values for matching field names while preserving field order.
+pub fun redact-fields( fields : list<field>, names : list<string>,
+                       replacement : string = "[REDACTED]" ) : div list<field>
+  fields.map fn(f)
+    if names.any(fn(n) n == f.fst) then (f.fst, replacement) else f
+
+// Redact matching call-site and nested-context fields for a region.
+//
+// Base fields owned by the outer destination are deliberately outside this
+// handler; configure secrets out of those at the destination itself.
+pub fun with-redaction( names : list<string>, action : () -> <logger,div|e> a,
+                        replacement : string = "[REDACTED]" ) : <logger,div|e> a
+  val outer = log-base-fields()
+  with override
+    fun log-base-fields() outer.redact-fields(names, replacement)
+    fun log-record(lvl, message, fields)
+      log-record(lvl, message, fields.redact-fields(names, replacement))
+  action()
+
 // Discard everything.  For tests that exercise a code path without caring
 // about its output.
 pub fun with-no-logger( action : () -> <logger|e> a ) : e a

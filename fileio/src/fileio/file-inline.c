@@ -21,21 +21,10 @@
 #define KKF_APPEND 16
 #define KKF_EXCL   32
 
-static kk_string_t kk_fio_borrow_path(kk_string_t path, char* buf, size_t buflen, kk_context_t* _ctx) {
-  kk_ssize_t len = 0;
-  const char* p = kk_string_cbuf_borrow(path, &len, _ctx);
-  size_t n = (size_t)len;
-  if (n >= buflen) n = buflen - 1;
-  memcpy(buf, p, n);
-  buf[n] = 0;
-  return path;
-}
-
 /* Returns a file descriptor, or -errno. */
 static int32_t kk_fio_open(kk_string_t path, int32_t flags, int32_t mode, kk_context_t* _ctx) {
-  char buf[4096];
-  kk_fio_borrow_path(path, buf, sizeof(buf), _ctx);
-  kk_string_drop(path, _ctx);
+  kk_ssize_t len = 0;
+  const char* p = kk_string_cbuf_borrow(path, &len, _ctx);
 
   int f = 0;
   const int32_t rw = flags & (KKF_READ | KKF_WRITE);
@@ -51,7 +40,10 @@ static int32_t kk_fio_open(kk_string_t path, int32_t flags, int32_t mode, kk_con
 #endif
 
   int fd;
-  do { fd = open(buf, f, (mode_t)mode); } while (fd < 0 && errno == EINTR);
+  do { fd = open(p, f, (mode_t)mode); } while (fd < 0 && errno == EINTR);
+  int saved = errno;
+  kk_string_drop(path, _ctx);
+  errno = saved;
   return (fd < 0 ? -(int32_t)errno : (int32_t)fd);
 }
 
@@ -126,6 +118,24 @@ static int32_t kk_fio_fsync(int32_t fd, kk_context_t* _ctx) {
   return (r < 0 ? -(int32_t)errno : 0);
 }
 
+static int32_t kk_fio_fchmod(int32_t fd, int32_t mode, kk_context_t* _ctx) {
+  kk_unused(_ctx);
+  int r;
+  do { r = fchmod((int)fd, (mode_t)mode); } while (r < 0 && errno == EINTR);
+  return (r < 0 ? -(int32_t)errno : 0);
+}
+
+static int32_t kk_fio_chmod(kk_string_t path, int32_t mode, kk_context_t* _ctx) {
+  kk_ssize_t len = 0;
+  const char* p = kk_string_cbuf_borrow(path, &len, _ctx);
+  int r;
+  do { r = chmod(p, (mode_t)mode); } while (r < 0 && errno == EINTR);
+  int saved = errno;
+  kk_string_drop(path, _ctx);
+  errno = saved;
+  return (r < 0 ? -(int32_t)errno : 0);
+}
+
 /* Seek; returns the new offset or -errno.  whence: 0=set 1=cur 2=end. */
 static int64_t kk_fio_seek(int32_t fd, int64_t off, int32_t whence, kk_context_t* _ctx) {
   kk_unused(_ctx);
@@ -152,23 +162,42 @@ static int32_t kk_fio_stat_error(kk_context_t* _ctx) {
    can carry its own failure.  `kind` and `mtime` come from the companion calls
    so the Koka side can keep a simple record. */
 static int64_t kk_fio_size(kk_string_t path, kk_context_t* _ctx) {
-  char buf[4096];
-  kk_fio_borrow_path(path, buf, sizeof(buf), _ctx);
-  kk_string_drop(path, _ctx);
+  kk_ssize_t len = 0;
+  const char* p = kk_string_cbuf_borrow(path, &len, _ctx);
   struct stat st;
-  if (stat(buf, &st) != 0) return -(int64_t)errno;
+  int r = stat(p, &st);
+  int saved = errno;
+  kk_string_drop(path, _ctx);
+  errno = saved;
+  if (r != 0) return -(int64_t)errno;
   return (int64_t)st.st_size;
+}
+
+static int32_t kk_fio_permissions(kk_string_t path, kk_context_t* _ctx) {
+  kk_ssize_t len = 0;
+  const char* p = kk_string_cbuf_borrow(path, &len, _ctx);
+  struct stat st;
+  int r = stat(p, &st);
+  int saved = errno;
+  kk_string_drop(path, _ctx);
+  errno = saved;
+  if (r != 0) return -(int32_t)errno;
+  return (int32_t)(st.st_mode & 07777);
 }
 
 /* 0 = the stat failed (kk_fio_stat_error says why -- "missing" is only one of
    the reasons), 1 = regular file, 2 = directory, 3 = other */
 static int32_t kk_fio_kind(kk_string_t path, kk_context_t* _ctx) {
-  char buf[4096];
-  kk_fio_borrow_path(path, buf, sizeof(buf), _ctx);
-  kk_string_drop(path, _ctx);
+  kk_ssize_t len = 0;
+  const char* p = kk_string_cbuf_borrow(path, &len, _ctx);
   struct stat st;
   kk_fio_stat_errno = 0;
-  if (stat(buf, &st) != 0) { kk_fio_stat_errno = (int32_t)errno; return 0; }
+  if (stat(p, &st) != 0) {
+    kk_fio_stat_errno = (int32_t)errno;
+    kk_string_drop(path, _ctx);
+    return 0;
+  }
+  kk_string_drop(path, _ctx);
   if (S_ISREG(st.st_mode)) return 1;
   if (S_ISDIR(st.st_mode)) return 2;
   return 3;
@@ -179,45 +208,74 @@ static int32_t kk_fio_kind(kk_string_t path, kk_context_t* _ctx) {
    sign.  0 is also a legitimate time (the epoch itself); that is the one value
    the Koka side has to ask about. */
 static int64_t kk_fio_mtime(kk_string_t path, kk_context_t* _ctx) {
-  char buf[4096];
-  kk_fio_borrow_path(path, buf, sizeof(buf), _ctx);
-  kk_string_drop(path, _ctx);
+  kk_ssize_t len = 0;
+  const char* p = kk_string_cbuf_borrow(path, &len, _ctx);
   struct stat st;
   kk_fio_stat_errno = 0;
-  if (stat(buf, &st) != 0) { kk_fio_stat_errno = (int32_t)errno; return 0; }
+  if (stat(p, &st) != 0) {
+    kk_fio_stat_errno = (int32_t)errno;
+    kk_string_drop(path, _ctx);
+    return 0;
+  }
+  kk_string_drop(path, _ctx);
   return (int64_t)st.st_mtime;
 }
 
 static int32_t kk_fio_rename(kk_string_t from, kk_string_t to, kk_context_t* _ctx) {
-  char fbuf[4096], tbuf[4096];
-  kk_fio_borrow_path(from, fbuf, sizeof(fbuf), _ctx);
-  kk_fio_borrow_path(to, tbuf, sizeof(tbuf), _ctx);
+  kk_ssize_t flen = 0, tlen = 0;
+  const char* fp = kk_string_cbuf_borrow(from, &flen, _ctx);
+  const char* tp = kk_string_cbuf_borrow(to, &tlen, _ctx);
+  int r = rename(fp, tp);
+  int saved = errno;
   kk_string_drop(from, _ctx);
   kk_string_drop(to, _ctx);
-  return (rename(fbuf, tbuf) != 0 ? -(int32_t)errno : 0);
+  errno = saved;
+  return (r != 0 ? -(int32_t)errno : 0);
 }
 
 static int32_t kk_fio_unlink(kk_string_t path, kk_context_t* _ctx) {
-  char buf[4096];
-  kk_fio_borrow_path(path, buf, sizeof(buf), _ctx);
+  kk_ssize_t len = 0;
+  const char* p = kk_string_cbuf_borrow(path, &len, _ctx);
+  int r = unlink(p);
+  int saved = errno;
   kk_string_drop(path, _ctx);
-  return (unlink(buf) != 0 ? -(int32_t)errno : 0);
+  errno = saved;
+  return (r != 0 ? -(int32_t)errno : 0);
 }
 
 /* Create and open a unique temporary file next to `templ` (which must end in
    XXXXXX).  Returns the descriptor or -errno; the chosen name is read back
    with kk_fio_temp_name. */
-static char kk_fio_temp_path[4096];
+static char* kk_fio_temp_path = NULL;
 
 static int32_t kk_fio_mkstemp(kk_string_t templ, kk_context_t* _ctx) {
-  kk_fio_borrow_path(templ, kk_fio_temp_path, sizeof(kk_fio_temp_path), _ctx);
+  kk_ssize_t len = 0;
+  const char* p = kk_string_cbuf_borrow(templ, &len, _ctx);
+  char* path = (char*)malloc((size_t)len + 1);
+  if (path == NULL) {
+    kk_string_drop(templ, _ctx);
+    return -(int32_t)ENOMEM;
+  }
+  memcpy(path, p, (size_t)len);
+  path[len] = 0;
   kk_string_drop(templ, _ctx);
-  int fd = mkstemp(kk_fio_temp_path);
-  return (fd < 0 ? -(int32_t)errno : (int32_t)fd);
+  int fd = mkstemp(path);
+  if (fd < 0) {
+    int saved = errno;
+    free(path);
+    errno = saved;
+    return -(int32_t)errno;
+  }
+#ifdef FD_CLOEXEC
+  (void)fcntl(fd, F_SETFD, FD_CLOEXEC);
+#endif
+  free(kk_fio_temp_path);
+  kk_fio_temp_path = path;
+  return (int32_t)fd;
 }
 
 static kk_string_t kk_fio_temp_name(kk_context_t* _ctx) {
-  return kk_string_alloc_from_utf8(kk_fio_temp_path, _ctx);
+  return kk_string_alloc_from_utf8(kk_fio_temp_path == NULL ? "" : kk_fio_temp_path, _ctx);
 }
 
 /* A human readable message for an errno, so error text is useful. */
@@ -229,12 +287,55 @@ static kk_string_t kk_fio_strerror(int32_t err, kk_context_t* _ctx) {
 /* Directory of a path, for creating a temporary file on the same filesystem
    (rename is only atomic within one filesystem). */
 static kk_string_t kk_fio_dirname(kk_string_t path, kk_context_t* _ctx) {
-  char buf[4096];
-  kk_fio_borrow_path(path, buf, sizeof(buf), _ctx);
+  kk_ssize_t len = 0;
+  const char* p = kk_string_cbuf_borrow(path, &len, _ctx);
+  kk_ssize_t slash = -1;
+  for (kk_ssize_t i = 0; i < len; i++) {
+    if (p[i] == '/') slash = i;
+  }
+  kk_string_t out;
+  if (slash < 0) {
+    out = kk_string_alloc_from_utf8(".", _ctx);
+  } else if (slash == 0) {
+    out = kk_string_alloc_from_utf8("/", _ctx);
+  } else {
+    out = kk_string_alloc_dupn_valid_utf8(slash, (const uint8_t*)p, _ctx);
+  }
   kk_string_drop(path, _ctx);
-  char* slash = strrchr(buf, '/');
-  if (slash == NULL) return kk_string_alloc_from_utf8(".", _ctx);
-  if (slash == buf) return kk_string_alloc_from_utf8("/", _ctx);
-  *slash = 0;
-  return kk_string_alloc_from_utf8(buf, _ctx);
+  return out;
+}
+
+/* Sync a directory after a rename, so the directory entry itself is durable. */
+static int32_t kk_fio_fsync_dir(kk_string_t path, kk_context_t* _ctx) {
+  kk_ssize_t len = 0;
+  const char* p = kk_string_cbuf_borrow(path, &len, _ctx);
+  int flags = O_RDONLY;
+#ifdef O_DIRECTORY
+  flags |= O_DIRECTORY;
+#endif
+#ifdef O_CLOEXEC
+  flags |= O_CLOEXEC;
+#endif
+  int fd;
+  do { fd = open(p, flags); } while (fd < 0 && errno == EINTR);
+  int r = 0;
+  if (fd >= 0) {
+    do { r = fsync(fd); } while (r < 0 && errno == EINTR);
+  }
+  int saved = errno;
+  if (fd >= 0) (void)close(fd);
+  kk_string_drop(path, _ctx);
+  errno = saved;
+  return (fd < 0 || r < 0 ? -(int32_t)errno : 0);
+}
+
+/* Portable errno classification. */
+static int32_t kk_fio_error_class(int32_t err, kk_context_t* _ctx) {
+  kk_unused(_ctx);
+  int e = (err < 0 ? -err : err);
+  if (e == ENOENT || e == ENOTDIR) return 1;
+  if (e == EACCES || e == EPERM) return 2;
+  if (e == EEXIST) return 3;
+  if (e == EISDIR) return 4;
+  return 0;
 }

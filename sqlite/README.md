@@ -23,8 +23,9 @@ it blocks the loop.
 | `database` | `value struct { conn : int }` | |
 | `open` | `(path : string, busy-ms : int = 5000) : io database` | `":memory:"` for an in-process database |
 | `close` | `(d : database) : io ()` | Idempotent; finalises every statement still open on it |
+| `is-open` | `(d : database) : io bool` | Whether a handle still names an open connection |
 | `with-database` | `(path : string, action : (database) -> io a, busy-ms : int = 5000) : io a` | |
-| `busy-timeout` | `(d : database, ms : int) : io ()` | How long to wait for another *process*'s write lock before reporting `Busy` |
+| `busy-timeout` | `(d : database, ms : int) : io ()` | How long to wait for another *process*'s write lock before reporting `Busy`; negative values are rejected |
 | `execute` | `(d : database, sql : string) : io ()` | SQL with no result rows: migrations, pragmas, DDL |
 | `last-insert-id` | `(d : database) : io int` | |
 | `changes` | `(d : database) : io int` | |
@@ -37,6 +38,7 @@ it blocks the loop.
 | `statement` | `value struct { stmt : int }` | |
 | `prepare` | `(d : database, sql : string) : io statement` | |
 | `finalize` | `(s : statement) : io ()` | Idempotent |
+| `is-finalized` | `(s : statement) : io bool` | Also becomes true when the owning connection closes |
 | `with-statement` | `(d : database, sql : string, action : (statement) -> io a) : io a` | Prepare, use, finalise — on success, on failure, and on cancellation |
 | `reset` | `(s : statement) : io ()` | Clear bindings and rewind, so a prepared statement can be reused |
 | `bind` | `(s : statement, index : int, v : value) : io ()` | 1-based, as SQLite counts |
@@ -68,8 +70,9 @@ it blocks the loop.
 | declaration | signature | what it is |
 | --- | --- | --- |
 | `with-transaction` | `(d : database, action : () -> io a) : io a` | `BEGIN IMMEDIATE`, commit on success, roll back on failure or cancellation |
+| `with-savepoint` | `(d : database, action : () -> io a) : io a` | A nestable transaction scope; works inside another savepoint or transaction |
 | `migration` | `struct { version : int; name : string; sql : string }` | `version` must be stable and increasing |
-| `migrate` | `(d : database, migrations : list<migration>) : io list<string>` | Applies whatever has not run yet, each in its own transaction, in ascending version order.  Running it twice is a no-op.  Returns the names applied |
+| `migrate` | `(d : database, migrations : list<migration>) : io list<string>` | Sorts by version, rejects duplicate versions and renamed applied migrations, then applies pending steps transactionally |
 
 The `COMMIT` is inside the same `try` as the action.  That is not a formality:
 `COMMIT` can fail with `SQLITE_BUSY` when another connection holds a read lock,
@@ -101,7 +104,7 @@ The tests assert on these; a service does not need them.
 | `query`, `run` | one `prepare` + `bind-all` + steps + one `finalize` |
 | `query-one` | one `prepare`, **one** `step`, one `finalize` |
 | `column`, `int-at`, `text-at` over `k` columns | O(k) — two parallel lists, not a map |
-| `migrate` over `m` migrations with `a` already applied | one query, then O(m·a) membership checks |
+| `migrate` over `m` migrations with `a` already applied | one query, O(m²) insertion sort, then O(m·a) history checks; migration lists are expected to be small |
 
 Measured on this machine (AMD Ryzen 9 5950X, 32 threads, 126 GiB, Linux 7.0.1
 x86_64, Koka 3.2.7, `--release`, fastest of 3), against `:memory:` so that no
@@ -187,9 +190,9 @@ fun main()
   fail loudly — but it means paging is the caller's job.
 * **`query-one` does not check for a second row.**  It steps once and returns.
   A query that matches several rows silently yields the first.
-* **`migrate` is forward-only.**  There is no down migration, no checksum of
-  the SQL that ran, and no detection of a migration whose text changed after it
-  was applied.  Only the version number is recorded.
+* **`migrate` is forward-only.**  There is no down migration or checksum of
+  the SQL that ran. It detects a reused version with a different name, but not
+  SQL text that changed while keeping the same version and name.
 * **`classify` maps six result codes**; everything else is `OtherDbError`.
   Extended codes are reduced to their low byte, so `SQLITE_CONSTRAINT_UNIQUE`
   and `SQLITE_CONSTRAINT_CHECK` are both `Constraint`.
@@ -198,10 +201,10 @@ fun main()
   statement it does not know about — a bookkeeping failure of this package, not
   of SQLite — and that arrives at `classify` looking exactly like a genuine
   `SQLITE_MISUSE`.  Reaching it takes using a handle after it was closed.
-* **`changes` and `last-insert-id` answer 0 for a connection that is not
-  open**, which is also what they answer for "nothing changed" and "nothing
-  inserted".  Same cause: a closed handle is not distinguishable from an
-  ordinary zero result.
+* **Handles are runtime-checked, not affine.** `is-open` and `is-finalized`
+  expose lifetime state, and operations that reach the native registry with a
+  stale id report `SQLITE_MISUSE`; the type system does not prevent retaining a
+  handle after its scope.
 * **`column`, `int-at` and `text-at` scan two parallel lists.**  Reading many
   columns out of many rows is O(rows · columns²) if every column is looked up
   by name.

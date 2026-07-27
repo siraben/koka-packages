@@ -54,13 +54,19 @@ static kk_stmt_t* kk_sq_find_stmt(int64_t id) {
 static int64_t kk_sq_open(kk_string_t path, kk_context_t* _ctx) {
   kk_ssize_t len = 0;
   const char* p = kk_string_cbuf_borrow(path, &len, _ctx);
-  char buf[4096];
-  size_t n = (size_t)len < sizeof(buf) - 1 ? (size_t)len : sizeof(buf) - 1;
-  memcpy(buf, p, n); buf[n] = 0;
+  char* buf = (char*)malloc((size_t)len + 1);
+  if (buf == NULL) {
+    kk_string_drop(path, _ctx);
+    kk_sq_set_error(NULL, "out of memory");
+    return -(int64_t)SQLITE_NOMEM;
+  }
+  memcpy(buf, p, (size_t)len);
+  buf[len] = 0;
   kk_string_drop(path, _ctx);
 
   sqlite3* db = NULL;
   int rc = sqlite3_open_v2(buf, &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL);
+  free(buf);
   if (rc != SQLITE_OK) {
     kk_sq_set_error(db, "cannot open database");
     if (db != NULL) sqlite3_close_v2(db);
@@ -68,7 +74,12 @@ static int64_t kk_sq_open(kk_string_t path, kk_context_t* _ctx) {
   }
   /* Foreign keys are off by default in sqlite; a service that declares them
      should have them enforced. */
-  sqlite3_exec(db, "PRAGMA foreign_keys=ON", NULL, NULL, NULL);
+  rc = sqlite3_exec(db, "PRAGMA foreign_keys=ON", NULL, NULL, NULL);
+  if (rc != SQLITE_OK) {
+    kk_sq_set_error(db, "cannot enable foreign keys");
+    sqlite3_close_v2(db);
+    return -(int64_t)rc;
+  }
 
   kk_db_t* d = (kk_db_t*)calloc(1, sizeof(kk_db_t));
   if (d == NULL) { sqlite3_close_v2(db); return -(int64_t)SQLITE_NOMEM; }
@@ -134,7 +145,9 @@ static int32_t kk_sq_busy_timeout(int64_t dbid, int32_t ms, kk_context_t* _ctx) 
   kk_unused(_ctx);
   kk_db_t* d = kk_sq_find_db(dbid);
   if (d == NULL) return -(int32_t)SQLITE_MISUSE;
-  return (int32_t)sqlite3_busy_timeout(d->db, (int)ms);
+  int rc = sqlite3_busy_timeout(d->db, (int)ms);
+  if (rc != SQLITE_OK) kk_sq_set_error(d->db, "cannot set busy timeout");
+  return (rc == SQLITE_OK ? 0 : -(int32_t)rc);
 }
 
 static int64_t kk_sq_last_insert_id(int64_t dbid, kk_context_t* _ctx) {
@@ -147,6 +160,16 @@ static int32_t kk_sq_changes(int64_t dbid, kk_context_t* _ctx) {
   kk_unused(_ctx);
   kk_db_t* d = kk_sq_find_db(dbid);
   return (d == NULL) ? 0 : (int32_t)sqlite3_changes(d->db);
+}
+
+static int32_t kk_sq_is_open(int64_t dbid, kk_context_t* _ctx) {
+  kk_unused(_ctx);
+  return (kk_sq_find_db(dbid) == NULL ? 0 : 1);
+}
+
+static int32_t kk_sq_is_finalized(int64_t sid, kk_context_t* _ctx) {
+  kk_unused(_ctx);
+  return (kk_sq_find_stmt(sid) == NULL ? 1 : 0);
 }
 
 /* ------------------------------------------------------------- statements */

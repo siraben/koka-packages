@@ -149,6 +149,19 @@ pub fun acquire( s : scope, get-it : () -> io a, release : (a) -> io () ) : io a
   es := Cons({ release(r) }, !es)
   r
 
+// Acquire an individually releasable handle inside a multi-resource scope.
+//
+// The scope registers the idempotent `release-owned`, so releasing the handle
+// early and then leaving the scope still invokes the underlying release action
+// exactly once. This combines dynamic acquisition with use-after-release
+// checks, which returning the raw value from `acquire` cannot provide.
+pub fun acquire-owned( s : scope, get-it : () -> io a,
+                       release : (a) -> io () ) : io owned<a>
+  val r = get-it()
+  val h = Owned(r, release, ref(False))
+  s.on-exit({ h.release-owned })
+  h
+
 // Register an action to run when the scope exits, without acquiring anything.
 pub fun on-exit( s : scope, action : () -> io () ) : io ()
   val es = s.entries

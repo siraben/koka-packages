@@ -70,16 +70,28 @@ pub type file-error
   OtherError( errno : int )
 
 pub fun file-error-kind( errno : int ) : file-error
-  match errno
-    2  -> NotFound            // ENOENT
-    13 -> PermissionDenied    // EACCES
-    17 -> AlreadyExists       // EEXIST
-    21 -> IsDirectory         // EISDIR
-    _  -> OtherError(errno)
+  match prim-error-class(errno.int32).int
+    1 -> NotFound
+    2 -> PermissionDenied
+    3 -> AlreadyExists
+    4 -> IsDirectory
+    _ -> OtherError(if errno < 0 then 0 - errno else errno)
 
 fun fail( op : string, path : string, err : int ) : exn a
   val e = if err < 0 then 0 - err else err
   throw(op ++ " " ++ path.show ++ ": " ++ prim-strerror(e.int32), ExnSystem(e))
+
+fun validate-perms( perms : int ) : exn ()
+  if perms < 0 || perms > 4095 then
+    throw("file permissions must be between 0 and 4095")
+
+fun validate-open-mode( mode : open-mode ) : exn ()
+  if mode.exclusive && !mode.create then
+    throw("exclusive open requires create")
+  if mode.trunc && !mode.write then
+    throw("truncate open requires write access")
+  if mode.append && !mode.write then
+    throw("append open requires write access")
 
 // ----------------------------------------------------------------------------
 // open and close
@@ -87,6 +99,8 @@ fun fail( op : string, path : string, err : int ) : exn a
 
 // Open a file.  The caller must `close` the result; prefer `with-file`.
 pub fun open( path : string, mode : open-mode = read-only, perms : int = default-perms ) : io file
+  validate-perms(perms)
+  validate-open-mode(mode)
   val fd = prim-open(path, mode.mode-flags.int32, perms.int32).int
   if fd < 0 then fail("cannot open", path, fd)
   File(fd)
@@ -114,6 +128,7 @@ fun close-quietly( f : file ) : io ()
 // Read at most `max` octets.  An empty result means end of file; a read that
 // fails throws, like every other call here.
 pub fun read( f : file, max : int = 65536 ) : io bytes
+  if max < 0 then throw("read size must not be negative")
   val b = unsafe-bytes-from-raw(prim-read(f.fd.int32, max.ssize_t))
   if b.is-notempty then b
   else
@@ -123,11 +138,6 @@ pub fun read( f : file, max : int = 65536 ) : io bytes
     // call into C.
     match prim-read-error().int
       0  -> b               // a real end of file
-      // EINTR.  `kk_fio_read` already retries it, so this is belt and braces.
-      4  -> read(f, max)
-      // EAGAIN, from a descriptor someone else made non-blocking: retrying is
-      // the right response rather than reporting end of file.
-      11 -> read(f, max)
       e  -> fail("cannot read from", "descriptor " ++ f.fd.show, e)
 
 // Read the whole file, in `chunk`-sized steps, up to `max-bytes`.
@@ -135,6 +145,8 @@ pub fun read( f : file, max : int = 65536 ) : io bytes
 // The bound exists so that reading an unexpectedly huge file fails loudly
 // instead of exhausting memory.  Pass a larger `max-bytes` deliberately.
 pub fun read-all( f : file, chunk : int = 65536, max-bytes : int = 64 * 1024 * 1024 ) : io bytes
+  if chunk <= 0 then throw("read chunk size must be positive")
+  if max-bytes < 0 then throw("read limit must not be negative")
   read-loop(f, chunk, max-bytes, builder-empty(chunk), 0)
 
 fun read-loop( f : file, chunk : int, max-bytes : int, acc : builder, sofar : int ) : io bytes
@@ -158,10 +170,14 @@ pub fun read-text-file( path : string, max-bytes : int = 64 * 1024 * 1024 ) : io
 
 // Call `action` with each chunk as it is read, without holding the whole file.
 pub fun stream( f : file, action : (bytes) -> io (), chunk : int = 65536 ) : io ()
+  if chunk <= 0 then throw("stream chunk size must be positive")
+  stream-loop(f, action, chunk)
+
+fun stream-loop( f : file, action : (bytes) -> io (), chunk : int ) : io ()
   val b = read(f, chunk)
   if b.is-notempty then
     action(b)
-    stream(f, action, chunk)
+    stream-loop(f, action, chunk)
 
 // ----------------------------------------------------------------------------
 // writing
@@ -179,6 +195,12 @@ pub fun write-string( f : file, s : string ) : io ()
 pub fun sync( f : file ) : io ()
   val r = prim-fsync(f.fd.int32).int
   if r < 0 then fail("cannot sync", "descriptor " ++ f.fd.show, r)
+
+// Change the permissions on an open descriptor.
+pub fun set-permissions( f : file, perms : int ) : io ()
+  validate-perms(perms)
+  val r = prim-fchmod(f.fd.int32, perms.int32).int
+  if r < 0 then fail("cannot change permissions on", "descriptor " ++ f.fd.show, r)
 
 pub fun write-file( path : string, data : bytes, perms : int = default-perms ) : io ()
   with-file(path, fn(f) f.write(data), write-only, perms)
@@ -212,24 +234,21 @@ pub fun seek( f : file, offset : int, from : whence = FromStart ) : io int
 //
 // Writes to a temporary file in the *same directory* (rename is only atomic
 // within one filesystem), fsyncs it so the contents are durable before the
-// name is swapped, then renames over the target.  A reader either sees the
-// old file or the new one, never a half-written one.  If anything fails the
-// temporary file is removed and `path` is untouched.
+// name is swapped, then renames over the target and fsyncs the directory. A
+// reader either sees the old file or the new one, never a half-written one.
+// Failures before the rename remove the temporary and leave `path` untouched.
+// A directory-sync failure is necessarily reported after the new name is
+// visible; it means crash durability of that name is uncertain.
 //
-// KNOWN GAP: `perms` is accepted and **not applied**.  `mkstemp` creates the
-// temporary file with 0600 and nothing changes it before the rename, so a file
-// replaced through here comes out owner-only-readable whatever was asked for.
-// Verified by measurement, not by reading: `replace-file(p, d, 420)` leaves `p`
-// at 0600.  The fix is an `fchmod` before the rename; it changes observable
-// behaviour, so it is recorded here and in the README rather than slipped in.
 pub fun replace-file( path : string, data : bytes, perms : int = default-perms ) : io ()
+  validate-perms(perms)
   val dir  = prim-dirname(path)
   val tmpl = dir ++ "/.tmp-XXXXXX"
   val fd   = prim-mkstemp(tmpl).int
   if fd < 0 then fail("cannot create a temporary file in", dir, fd)
   val tmp  = prim-temp-name()
   val f    = File(fd)
-  match try({ f.write(data); f.sync(); close-quietly(f) })
+  match try({ f.write(data); f.set-permissions(perms); f.sync(); close-quietly(f) })
     Error(ex) ->
       close-quietly(f)
       prim-unlink(tmp)
@@ -239,6 +258,8 @@ pub fun replace-file( path : string, data : bytes, perms : int = default-perms )
       if r < 0 then
         prim-unlink(tmp)
         fail("cannot replace", path, r)
+      val sr = prim-fsync-dir(dir).int
+      if sr < 0 then fail("replaced but cannot sync containing directory for", path, sr)
       ()
 
 pub fun replace-text-file( path : string, text : string, perms : int = default-perms ) : io ()
@@ -282,11 +303,10 @@ pub fun kind( path : string ) : io path-kind
 // could not find out, and answering `Missing` to those tells the caller the
 // opposite of the truth -- so they throw, as every other failure here does.
 fun stat-failed( path : string ) : io path-kind
-  match prim-stat-error().int
-    0  -> Missing
-    2  -> Missing    // ENOENT: no such file or directory
-    20 -> Missing    // ENOTDIR: a component of the path is not a directory
-    e  -> fail("cannot stat", path, e)
+  val e = prim-stat-error().int
+  if e == 0 || prim-error-class(e.int32).int == 1
+    then Missing
+    else fail("cannot stat", path, e)
 
 pub fun path-exists( path : string ) : io bool
   match path.kind
@@ -297,6 +317,18 @@ pub fun size( path : string ) : io int
   val n = prim-size(path).int
   if n < 0 then fail("cannot stat", path, n)
   n
+
+// The path's permission bits, including the set-user/group-id and sticky bits.
+pub fun permissions( path : string ) : io int
+  val n = prim-permissions(path).int
+  if n < 0 then fail("cannot stat", path, n)
+  n
+
+// Change a path's permissions.
+pub fun set-path-permissions( path : string, perms : int ) : io ()
+  validate-perms(perms)
+  val r = prim-chmod(path, perms.int32).int
+  if r < 0 then fail("cannot change permissions on", path, r)
 
 // Modification time in whole seconds since the epoch.
 //
@@ -336,10 +368,16 @@ extern prim-write-all( fd : int32, data : any ) : io ssize_t
   c "kk_fio_write_all"
 extern prim-fsync( fd : int32 ) : io int32
   c "kk_fio_fsync"
+extern prim-fchmod( fd : int32, mode : int32 ) : io int32
+  c "kk_fio_fchmod"
+extern prim-chmod( path : string, mode : int32 ) : io int32
+  c "kk_fio_chmod"
 extern prim-seek( fd : int32, off : int64, whence : int32 ) : io int64
   c "kk_fio_seek"
 extern prim-size( path : string ) : io int64
   c "kk_fio_size"
+extern prim-permissions( path : string ) : io int32
+  c "kk_fio_permissions"
 extern prim-kind( path : string ) : io int32
   c "kk_fio_kind"
 extern prim-mtime( path : string ) : io int64
@@ -359,3 +397,7 @@ extern prim-strerror( err : int32 ) : string
   c "kk_fio_strerror"
 extern prim-dirname( path : string ) : string
   c "kk_fio_dirname"
+extern prim-fsync-dir( path : string ) : io int32
+  c "kk_fio_fsync_dir"
+extern prim-error-class( err : int32 ) : int32
+  c "kk_fio_error_class"
