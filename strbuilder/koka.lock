@@ -6,11 +6,11 @@ koka = ">=3.2,<4"
 [packages.bytes]
 kind = "path"
 path = "../bytes"
-checksum = "sha256:de12bbb1f40812d4ddc74fa88e87005d82aa25d5c1f403991bc80e6cd83b0a03"
+checksum = "sha256:6e929fb770d95a353181a79a501dd4b09e6afd78422b339a49c2bee0fb210638"
 dependencies = ["kktest"]
 
 [packages.kktest]
 kind = "path"
 path = "../kktest"
-checksum = "sha256:a6841b12d3085f9af3210c91dc680229f11628e3068d789f864d5b961ab776ef"
+checksum = "sha256:0211558fcfbd075a0100790a19a77e6ad85cfd756d33fe3e6271d6e3835a37a1"
 dependencies = []

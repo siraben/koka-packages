@@ -9,9 +9,15 @@
 
    A `bytes/builder` underneath, so the accumulated text is UTF-8 the whole
    way and `finish-bytes` can hand it straight to a socket without another
-   copy.  `finish` decodes back to a `:string`; because everything appended
-   was either a `:string` or an escape sequence this module produced, the
-   result is always valid UTF-8.
+   copy.  `finish` decodes back to a `:string`.
+
+   Everything `append`, `append-char`, `append-int`, `append-line`,
+   `append-join` and the escapers put in the buffer is a `:string` or an escape
+   sequence this module produced, so it is valid UTF-8.  `append-bytes` is the
+   one door through which arbitrary octets enter, and it does not check them:
+   `finish` therefore decodes *lossily*, and octets that are not valid UTF-8
+   come back as U+FFFD rather than failing.  A caller that must not lose them
+   should use `finish-bytes`, which hands over the octets undecoded.
 
    ## Linearity
 
@@ -76,35 +82,46 @@ pub fun append-join( b : strbuilder, parts : list<string>, sep : string = "" ) :
 // rather than \u sequences, which is valid JSON and much smaller.
 // ----------------------------------------------------------------------------
 
+// Escaped, one `append` per *run* of characters that need no escaping rather
+// than one per character.  Each `append` crosses into C, and that cost must be
+// paid per run, not per character -- for the common value, which needs no
+// escaping at all, this is a single append of the whole string.
 pub fun append-json-escaped( b : strbuilder, s : string ) : div strbuilder
-  s.list.foldl(b, fn(acc, c) acc.append-json-char(c))
+  // `run` holds the pending unescaped characters, most recent first
+  fun flush( acc : strbuilder, run : list<char> ) : strbuilder
+    match run
+      Nil        -> acc
+      Cons(_, _) -> acc.append(run.reverse.string)
+  fun go( acc : strbuilder, cs : list<char>, run : list<char> ) : div strbuilder
+    match cs
+      Nil -> flush(acc, run)
+      Cons(c, rest) ->
+        match c.json-escape
+          Nothing  -> go(acc, rest, Cons(c, run))
+          Just(esc) -> go(flush(acc, run).append(esc), rest, Nil)
+  go(b, s.list, Nil)
 
-fun append-json-char( b : strbuilder, c : char ) : strbuilder
+// What to write instead of `c`, or `Nothing` when `c` is written as itself.
+// The `:maybe` is what lets the caller batch: "needs no escaping" is the
+// answer for almost every character, and those go out in one piece.
+fun json-escape( c : char ) : maybe<string>
   match c
-    '"'  -> b.append("\\\"")
-    '\\' -> b.append("\\\\")
-    '\n' -> b.append("\\n")
-    '\r' -> b.append("\\r")
-    '\t' -> b.append("\\t")
+    '"'  -> Just("\\\"")
+    '\\' -> Just("\\\\")
+    '\n' -> Just("\\n")
+    '\r' -> Just("\\r")
+    '\t' -> Just("\\t")
     _ ->
+      // the remaining escapes are the other control characters below U+0020
       val n = c.int
-      if n == 8 then b.append("\\b")
-      elif n == 12 then b.append("\\f")
-      elif n < 0x20 then b.append("\\u").append(hex4(n))
-      else b.append-char(c)
+      if n == 8 then Just("\\b")
+      elif n == 12 then Just("\\f")
+      elif n < 0x20 then Just("\\u" ++ n.show-hex(4, use-capitals = False, pre = ""))
+      else Nothing
 
 // A string wrapped in quotes with its contents escaped.
 pub fun append-json-string( b : strbuilder, s : string ) : div strbuilder
   b.append("\"").append-json-escaped(s).append("\"")
-
-fun hex4( n : int ) : string
-  val digits = "0123456789abcdef"
-  fun d( shift : int ) : string
-    val v = (n / shift) % 16
-    match digits.list.drop(v)
-      Cons(ch, _) -> ch.string
-      Nil         -> "0"
-  d(4096) ++ d(256) ++ d(16) ++ d(1)
 
 // ----------------------------------------------------------------------------
 // finishing

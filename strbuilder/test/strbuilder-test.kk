@@ -103,6 +103,17 @@ fun main()
       test("forward slash is not escaped", fn()
         assert-equal(build(fn(b) b.append-json-escaped("a/b")), "a/b")
       ),
+      // Unescaped characters are appended a run at a time, so the boundaries
+      // of a run are what can go wrong: an escape first, last, alone, and two
+      // in a row must not drop or reorder the text around them.
+      test("runs around the escapes come out in order", fn()
+        assert-equal(build(fn(b) b.append-json-escaped("\"abc")), "\\\"abc")
+        assert-equal(build(fn(b) b.append-json-escaped("abc\"")), "abc\\\"")
+        assert-equal(build(fn(b) b.append-json-escaped("\t\n")), "\\t\\n")
+        assert-equal(build(fn(b) b.append-json-escaped("")), "")
+        assert-equal(build(fn(b) b.append-json-escaped("a\tb\nc")), "a\\tb\\nc")
+        assert-equal(build(fn(b) b.append-json-escaped("é\té")), "é\\té")
+      ),
       test("append-json-string adds the quotes", fn()
         assert-equal(build(fn(b) b.append-json-string("a\"b")), "\"a\\\"b\"")
         assert-equal(build(fn(b) b.append-json-string("")), "\"\"")

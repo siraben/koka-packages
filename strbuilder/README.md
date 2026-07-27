@@ -54,16 +54,21 @@ x86_64, Koka 3.2.7, `--release`, fastest of 3):
 
 | what | n | ms | units/s |
 | --- | ---: | ---: | ---: |
-| builder `append` of a 10-char chunk | 2 000 000 | 60 | 33 333 333 |
-| builder `append` of a 10-char chunk | 8 000 000 | 221 | 36 199 095 |
-| naive `++` of a 10-char chunk | 20 000 | 30 | 666 666 |
-| naive `++` of a 10-char chunk | 80 000 | 654 | 122 324 |
-| `append-json-string`, 41-char value | 50 000 | 66 | 757 575 |
-| `append-json-string`, 41-char value | 200 000 | 221 | 904 977 |
+| builder `append` of a 10-char chunk | 2 000 000 | 48 | 41 666 666 |
+| builder `append` of a 10-char chunk | 8 000 000 | 188 | 42 553 191 |
+| naive `++` of a 10-char chunk | 20 000 | 28 | 714 285 |
+| naive `++` of a 10-char chunk | 80 000 | 553 | 144 665 |
+| `append-json-string`, 41-char value | 50 000 | 36 | 1 388 888 |
+| `append-json-string`, 41-char value | 200 000 | 145 | 1 379 310 |
 
-Four times the appends cost the builder 3.7x and naive `++` 22x.  That is the
+Four times the appends cost the builder 3.9x and naive `++` 20x.  That is the
 whole claim, and it is why an absolute threshold is not enough to check it: at
-n = 20 000 the quadratic version takes 30 ms, which any timeout would accept.
+n = 20 000 the quadratic version takes 28 ms, which any timeout would accept.
+
+The escaping row is a value of which a quarter needs escaping.  Characters that
+do not are appended a run at a time rather than one at a time, because each
+append crosses into C: that is worth about 25% here and more on a value that
+needs no escaping at all, which is the common one.
 
 Reproduce with `./run-benchmarks.sh strbuilder` from the repository root.
 
@@ -116,11 +121,17 @@ fun main()
   A caller that needs one of those should not reach for
   `append-json-escaped` because it is nearby.
 * **`append-json-escaped` walks the string as a character list**, which
-  allocates.  It is the reason a log record with eight escaped fields costs
-  around 4 µs; see `logging`'s numbers.  Fixing it means an octet-level escape
-  in `bytes`, which has not been done.
-* **`finish` never produces invalid UTF-8**, because everything appended was
-  either a `:string` or an escape sequence this module produced.  That holds
-  only as long as `append-bytes` is fed valid UTF-8; it is the one door through
-  which arbitrary octets enter, and `finish` decodes lossily rather than
-  failing.
+  allocates a cell per character even though it now crosses into C once per
+  run of unescaped characters rather than once per character.  Removing the
+  character list means an octet-level escape in `bytes`, which has not been
+  done — `bytes` has no per-octet primitive a Koka loop could drive without
+  paying for a call per octet, and adding a JSON escaper to it would put a
+  text-format concern in a package that deliberately has none.  `logging`'s
+  README quotes a cost per log record that was measured before this change.
+* **`finish` can produce U+FFFD.**  Everything `append`, `append-char`,
+  `append-int`, `append-line`, `append-join` and the escapers put in the buffer
+  is a `:string` or an escape sequence this module produced, so it is valid
+  UTF-8.  `append-bytes` is the exception: it takes arbitrary octets and does
+  not check them, and `finish` decodes lossily, so octets that are not valid
+  UTF-8 come back as U+FFFD rather than as an error.  Use `finish-bytes` when
+  they must survive.
