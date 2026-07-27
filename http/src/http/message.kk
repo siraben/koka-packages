@@ -84,15 +84,23 @@ pub fun strict-nat( s : string ) : maybe<int>
   elif cs.any(fn(c) c < '0' || c > '9') then Nothing
   else s.parse-int
 
-// The declared body length, or 0 when the header is absent or unparseable.
-// `parse` has already refused anything ambiguous, so by the time a handler sees
-// a `:request` the only reason this can be 0 is that the body really is empty.
-pub fun content-length( r : request ) : int
+// The declared body length: `Nothing` when the header is absent, and `Nothing`
+// when it is present but not a strict non-negative decimal.
+//
+// It used to return a plain `int` with 0 for both, which made `content-length:
+// abc` indistinguishable from `content-length: 0` and from no header at all --
+// while `body-length`, the private sibling that decides framing, was hardened
+// to reject exactly those values with a 400.  A public accessor that is more
+// forgiving than the framing rule is how the two come to disagree, and a
+// disagreement about how many octets follow is what request smuggling is.
+//
+// A `:request` that `parse` produced can only carry a value this accepts,
+// because `parse` refused the rest; a hand-built one can carry anything, and
+// `Nothing` is what that case honestly reports.
+pub fun content-length( r : request ) : maybe<int>
   match r.header("content-length")
-    Nothing -> 0
-    Just(v) -> match v.trim.strict-nat
-                 Just(n)  -> n
-                 Nothing  -> 0
+    Nothing -> Nothing
+    Just(v) -> v.trim.strict-nat
 
 // Does the client want the connection kept open?  HTTP/1.1 defaults to yes.
 pub fun wants-keep-alive( r : request ) : bool

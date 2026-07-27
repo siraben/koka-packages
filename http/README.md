@@ -20,7 +20,7 @@ no TLS, no HTTP/2, and nothing proxy-shaped.
 | --- | --- | --- |
 | `request` | `struct { method; path; query; version; headers; body : bytes }` | `path` has the query string removed; header names are lower-cased on the way in |
 | `header` | `(r : request, name : string) : maybe<string>` | Case-insensitive, without a second pass |
-| `content-length` | `(r : request) : int` | 0 when absent.  `parse` has already refused anything ambiguous |
+| `content-length` | `(r : request) : maybe<int>` | `Nothing` when the header is absent *or* not a strict non-negative decimal — the two cases a plain `int` could not tell apart from a real 0 |
 | `wants-keep-alive` | `(r : request) : bool` | HTTP/1.1 defaults to yes, HTTP/1.0 to no |
 | `response` | `struct { status; reason; headers; body : bytes }` | |
 | `response` | `(status : int, body : bytes = bytes-empty, headers = [], reason : string = "") : response` | An empty `reason` picks the default |
@@ -117,24 +117,27 @@ x86_64, Koka 3.2.7, `--release`, fastest of 3):
 
 | what | n | ms | units/s |
 | --- | ---: | ---: | ---: |
-| parse a request, 3 headers | 200 000 | 797 | 250 941 |
-| parse a request, 31 headers | 100 000 | 2 868 | 34 867 |
-| render a 200 with 2 headers | 200 000 | 185 | 1 081 081 |
+| parse a request, 3 headers | 200 000 | 537 | 372 439 |
+| parse a request, 31 headers | 100 000 | 1 888 | 52 966 |
+| render a 200 with 2 headers | 200 000 | 170 | 1 176 470 |
 | dribbled 1 octet/read, with `from` (n = parse calls) | 145 400 | 16 | 9 087 500 |
-| dribbled 1 octet/read, rescan from 0 (n = parse calls) | 145 400 | 174 | 835 632 |
-| `route-match`, 5 routes, last matches | 500 000 | 873 | 572 737 |
-| `route-match`, 5 routes, no match | 500 000 | 503 | 994 035 |
+| dribbled 1 octet/read, rescan from 0 (n = parse calls) | 145 400 | 24 | 6 058 333 |
+| `route-match`, 5 routes, last matches | 500 000 | 719 | 695 410 |
+| `route-match`, 5 routes, no match | 500 000 | 430 | 1 162 790 |
 
-A small request parses in about 4 µs and a response renders in about 0.9 µs.
-Ten times as many headers costs 7.2x, which is the linear header scan plus the
+A small request parses in about 2.7 µs and a response renders in about 0.9 µs.
+Ten times as many headers costs 7.0x, which is the linear header scan plus the
 larger buffer.
 
 The dribbled pair is the row worth having.  Both feed the same 727-octet
 request one octet at a time, so both make the same number of `parse` calls;
 they differ only in whether the caller passes the `from` offset the server
-passes.  Rescanning from zero is **10.9 times slower** on a request this size,
+passes.  Rescanning from zero is **1.5 times slower** on a request this size,
 and the gap grows with the request, because it is O(total²) against O(total).
 That is what the `from` parameter is for, and why `http/server` maintains it.
+The margin is this narrow only because `bytes/index-of` skips with `memchr`;
+the quadratic term is still there, and it is the request size that decides
+whether it matters.
 
 Reproduce with `./run-benchmarks.sh http` from the repository root.
 
@@ -213,9 +216,14 @@ running server and the server shuts down when it returns.  See
   sizes the limits allow and would not be at larger ones.
 * **No cookies, sessions, authentication, CORS, compression, static files, or
   TLS.**  A service that needs any of them supplies it in a handler.
-* **`content-length` returns 0 for a header that is absent *or* unparseable.**
-  That is safe only because `parse` has already refused anything ambiguous
-  before a `:request` exists; it is not a general-purpose accessor.
+* **`content-length` is `maybe<int>`, not `int`.**  It used to return 0 for a
+  header that was absent, one that was literally `0`, and one that was
+  unparseable — three different facts as one number — while `body-length`, the
+  private sibling that actually decides framing, rejected the unparseable ones
+  with a 400.  A public accessor more forgiving than the framing rule is how
+  the two come to disagree about how many octets follow, which is what request
+  smuggling is.  A `:request` that `parse` produced can still only carry a
+  value the framing rule accepted.
 * **Nothing yields to the event loop while parsing.**  A 1 MiB body is parsed
   in one go, which at the measured rate is a few milliseconds during which the
   single-threaded loop serves nobody.

@@ -21,6 +21,11 @@ fun status-of( text : string, lim : limits = default-limits ) : div int
 fun get( path : string ) : string
   "GET " ++ path ++ " HTTP/1.1\r\nhost: x\r\n\r\n"
 
+// A request assembled directly, bypassing `parse` -- the only way to reach the
+// header values `parse` refuses.
+fun built( headers : list<(string, string)> ) : request
+  Request("POST", "/", "", "HTTP/1.1", headers, bytes-empty)
+
 // Routes for the router tests; the handler just names what matched.
 fun mark( name : string ) : ((request, params) -> total response)
   fn(_r, ps) text-response(200, name ++ ":" ++ ps.map(fn(kv) kv.snd).join(","))
@@ -65,7 +70,17 @@ fun main()
       test("a body is read according to content-length", fn()
         val r = parsed("POST /items HTTP/1.1\r\ncontent-length: 5\r\n\r\nhello")
         assert-equal(r.body.to-string-lossy, "hello")
-        assert-equal(r.content-length, 5)
+        assert-equal(r.content-length, Just(5))
+      ),
+      test("content-length tells absent from unparseable from zero", fn()
+        // `parse` refuses the last two, so these are built by hand -- which is
+        // exactly the caller `content-length` has to stay honest with.
+        assert-equal(built([]).content-length, Nothing,
+                     "an absent header must not read as a length")
+        assert-equal(built([("content-length", "0")]).content-length, Just(0))
+        assert-equal(built([("content-length", "abc")]).content-length, Nothing,
+                     "an unparseable length must not read as 0")
+        assert-equal(built([("content-length", "-1")]).content-length, Nothing)
       ),
       test("values containing colons survive", fn()
         val r = parsed("GET / HTTP/1.1\r\nhost: example.com:8080\r\n\r\n")
