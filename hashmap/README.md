@@ -122,27 +122,24 @@ takes, so `units/s` is directly comparable down the column:
 
 | what | n | ms | units/s |
 | --- | ---: | ---: | ---: |
-| insert (map of 1k) | 524 288 | 144 | 3 640 888 |
-| insert (map of 4k) | 524 288 | 181 | 2 896 618 |
-| insert (map of 16k) | 524 288 | 229 | 2 289 467 |
-| lookup (map of 1k) | 524 288 | 45 | 11 650 844 |
-| lookup (map of 4k) | 524 288 | 52 | 10 082 461 |
-| lookup (map of 16k) | 524 288 | 62 | 8 456 258 |
-| remove (map of 1k) | 524 288 | 124 | 4 228 129 |
-| remove (map of 16k) | 524 288 | 178 | 2 945 438 |
-| set `union`, 8k into 8k (n = inserts) | 256 000 | 115 | 2 226 086 |
-| set `intersect`, 8k and 8k | 256 000 | 87 | 2 942 528 |
+| insert (map of 1k) | 524 288 | 158 | 3 318 278 |
+| insert (map of 4k) | 524 288 | 200 | 2 621 440 |
+| insert (map of 16k) | 524 288 | 242 | 2 166 479 |
+| lookup (map of 1k) | 524 288 | 56 | 9 362 285 |
+| lookup (map of 4k) | 524 288 | 63 | 8 322 031 |
+| lookup (map of 16k) | 524 288 | 71 | 7 384 338 |
+| remove (map of 1k) | 524 288 | 132 | 3 971 878 |
+| remove (map of 16k) | 524 288 | 187 | 2 803 679 |
+| set `union`, 8k into 8k (n = inserts) | 256 000 | 131 | 1 954 198 |
+| set `intersect`, 8k and 8k | 256 000 | 106 | 2 415 094 |
 
-Sixteen times as many entries costs 1.6x per insert and 1.4x per lookup.  A
+Sixteen times as many entries costs 1.5x per insert and 1.3x per lookup.  A
 flat column would have meant the tree was not being walked at all; a 16x column
 would have meant it was a list.
 
-These are with the node count stored alongside the entry count.  Measured on
-the same machine immediately before that second count was added, the same rows
-read 138 / 177 / 222 ms for insert and 40 / 43 / 56 ms for lookup: the extra
-word per node costs about 3% on insert and about 10% on lookup, which is what a
-48-byte node growing to 56 bytes does to how much of the tree fits in cache.
-That is the price of a balance invariant that a rotation can actually restore.
+A node carries a node count as well as an entry count, so it is 56 bytes rather
+than 48 — about a word per node of cache, spent on a balance invariant that a
+rotation can actually restore.
 
 Reproduce with `./run-benchmarks.sh hashmap` from the repository root.
 

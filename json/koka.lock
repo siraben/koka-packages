@@ -12,7 +12,7 @@ dependencies = ["kktest"]
 [packages.hashmap]
 kind = "path"
 path = "../hashmap"
-checksum = "sha256:079d7f76fef55d955703ebb6c5cf0ebbf65c31ba828f11ade9ddeb4c83ccbf5e"
+checksum = "sha256:35bbd8bcc6a1f50eddd8332171883eb742c22c9bfd2486c1f881c1f21c894ccf"
 dependencies = ["kktest"]
 
 [packages.kktest]

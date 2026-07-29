@@ -110,6 +110,16 @@ fun weight( m : hmap<k,v> ) : int
 fun bin( h : int, b : list<(k,v)>, l : hmap<k,v>, r : hmap<k,v> ) : hmap<k,v>
   Bin(b.length + l.size + r.size, 1 + l.weight + r.weight, h, b, l, r)
 
+// Does this pair of children need a rotation, or does the node just get
+// rebuilt?  Split out of `balance` so a caller that already matched the node
+// can answer the question first and then rebuild in its own arm -- see
+// `insert-go`.
+fun rotates( l : hmap<k,v>, r : hmap<k,v> ) : bool
+  val ls = l.weight
+  val rs = r.weight
+  if ls + rs <= 1 then False
+  else rs > delta * ls || ls > delta * rs
+
 // Rebuild a node after one side gained or lost at most one node.
 fun balance( h : int, b : list<(k,v)>, l : hmap<k,v>, r : hmap<k,v> ) : hmap<k,v>
   val ls = l.weight
@@ -186,12 +196,26 @@ pub fun insert-with( m : hmap<k,v>, key : k, value : v, combine : (v, v) -> v,
 
 fun insert-go( t : hmap<k,v>, hv : int, key : k, value : v, combine : (v, v) -> v,
                ?(==) : (k,k) -> bool ) : div hmap<k,v>
+  // Every arm ends in a literal `Bin(...)` on the path that does not rotate.
+  // Perceus can reuse the node just matched only when the constructor call is
+  // in the arm that matched it: hand the same work to `bin` or `balance` and
+  // the reuse token is dropped at the call boundary, and the insert allocates
+  // a fresh node at every level instead.  Rotation is rare and keeps its
+  // helper.
   match t
     Tip -> Bin(1, 1, hv, [(key, value)], Tip, Tip)
     Bin(_, _, nh, b, l, r) ->
-      if hv < nh then balance(nh, b, insert-go(l, hv, key, value, combine), r)
-      elif hv > nh then balance(nh, b, l, insert-go(r, hv, key, value, combine))
-      else bin(nh, bucket-insert(b, key, value, combine), l, r)
+      if hv < nh then
+        val l2 = insert-go(l, hv, key, value, combine)
+        if rotates(l2, r) then balance(nh, b, l2, r)
+        else Bin(b.length + l2.size + r.size, 1 + l2.weight + r.weight, nh, b, l2, r)
+      elif hv > nh then
+        val r2 = insert-go(r, hv, key, value, combine)
+        if rotates(l, r2) then balance(nh, b, l, r2)
+        else Bin(b.length + l.size + r2.size, 1 + l.weight + r2.weight, nh, b, l, r2)
+      else
+        val b2 = bucket-insert(b, key, value, combine)
+        Bin(b2.length + l.size + r.size, 1 + l.weight + r.weight, nh, b2, l, r)
 
 // `bucket-insert` recurses to the tail, so a new key is *appended*: within one
 // bucket, iteration yields the least recently inserted key first.

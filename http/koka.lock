@@ -12,13 +12,13 @@ dependencies = ["kktest"]
 [packages.hashmap]
 kind = "path"
 path = "../hashmap"
-checksum = "sha256:079d7f76fef55d955703ebb6c5cf0ebbf65c31ba828f11ade9ddeb4c83ccbf5e"
+checksum = "sha256:35bbd8bcc6a1f50eddd8332171883eb742c22c9bfd2486c1f881c1f21c894ccf"
 dependencies = ["kktest"]
 
 [packages.json]
 kind = "path"
 path = "../json"
-checksum = "sha256:76815c5d1188304665c69768a852efb3bb2b5390f288c522f668c578ba3e245b"
+checksum = "sha256:15af5f4dea594eb9723ecdd4c98081cfaf9fde3af8930b43736e820a4d7e0921"
 dependencies = ["bytes", "hashmap", "kktest", "strbuilder"]
 
 [packages.kktest]
@@ -30,7 +30,7 @@ dependencies = []
 [packages.logging]
 kind = "path"
 path = "../logging"
-checksum = "sha256:2257f7429b83b2e427f65d6adc858fed1341a111d1b8eddb025e0eb37aaf96d2"
+checksum = "sha256:d1ce031c29ea040f5b8d4f090268b9a83bab52e48f4ccd93316d9cb4614ae61b"
 dependencies = ["json", "kktest", "strbuilder"]
 
 [packages.resource]
