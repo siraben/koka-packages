@@ -103,20 +103,20 @@ so `units/s` reads as KiB/s:
 
 | what | n (KiB) | ms | units/s |
 | --- | ---: | ---: | ---: |
-| parse, array of 200 objects | 15 001 | 1 489 | 10 074 |
-| parse, array of 20k objects | 16 558 | 1 514 | 10 936 |
-| parse, flat object, 20k keys | 6 597 | 761 | 8 668 |
-| generate, array of 200 objects | 15 001 | 261 | 57 475 |
-| generate, array of 20k objects | 16 558 | 275 | 60 210 |
-| generate, flat object, 20k keys | 6 597 | 125 | 52 776 |
+| parse, array of 200 objects | 15 001 | 1 502 | 9 987 |
+| parse, array of 20k objects | 16 558 | 1 599 | 10 355 |
+| parse, flat object, 20k keys | 6 597 | 868 | 7 600 |
+| generate, array of 200 objects | 15 001 | 179 | 83 804 |
+| generate, array of 20k objects | 16 558 | 193 | 85 792 |
+| generate, flat object, 20k keys | 6 597 | 72 | 91 625 |
 
-Parsing runs at about 10 MiB/s and generation at about 56 MiB/s.  Parsing a
-document a hundred times larger costs the same *per byte* — 10.1 against 10.9
-MiB/s — which is what O(n) means here, and is the point of the seen-key set: an
-earlier version scanned the accumulated members for each key, and a 99 KB
-object of distinct keys (a tenth of `max-bytes`, and exactly at `max-members`)
-cost about four CPU-seconds, four seconds during which a single-threaded
-cooperative loop serves nobody.
+Parsing runs at about 10 MiB/s and generation at about 80 MiB/s.  Parsing a
+document a hundred times larger costs the same *per byte* — 9.8 against 10.1
+MiB/s — which is what O(n) means here, and is the point of the seen-key set.
+Checking each key against the members accumulated so far is quadratic instead:
+a 99 KB object of distinct keys (a tenth of `max-bytes`, and exactly at
+`max-members`) costs about four CPU-seconds that way, four seconds during which
+a single-threaded cooperative loop serves nobody.
 
 Reproduce with `./run-benchmarks.sh json` from the repository root.
 

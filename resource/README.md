@@ -76,17 +76,17 @@ acquire/release pairs, so these are directly comparable:
 | what | n | ms | units/s |
 | --- | ---: | ---: | ---: |
 | acquire/release by hand, no scope | 2 000 000 | 5 | 400 000 000 |
-| `with-resource` | 2 000 000 | 21 | 95 238 095 |
-| `with-owned` | 2 000 000 | 69 | 28 985 507 |
-| `with-scope` of 1k, n = acquisitions | 2 000 000 | 69 | 28 985 507 |
-| `with-scope` of 10k, n = acquisitions | 2 000 000 | 79 | 25 316 455 |
-| `with-resource` nested 8 deep | 2 000 000 | 33 | 60 606 060 |
-| `with-resource` nested 32 deep | 2 000 000 | 32 | 62 500 000 |
+| `with-resource` | 2 000 000 | 19 | 105 263 157 |
+| `with-owned` | 2 000 000 | 66 | 30 303 030 |
+| `with-scope` of 1k, n = acquisitions | 2 000 000 | 64 | 31 250 000 |
+| `with-scope` of 10k, n = acquisitions | 2 000 000 | 68 | 29 411 764 |
+| `with-resource` nested 8 deep | 2 000 000 | 26 | 76 923 076 |
+| `with-resource` nested 32 deep | 2 000 000 | 29 | 68 965 517 |
 
-`with-resource` costs about 8 ns per acquire/release over doing it by hand, and
-`with-owned` about 32 ns — the extra is the `ref` for the released flag.
-Nesting is free: 32 deep costs the same per operation as 8 deep.  A scope costs
-about the same as `with-owned`.  At the scale a request handler works at, none
+`with-resource` costs about 7 ns per acquire/release over doing it by hand, and
+`with-owned` about 30 ns — the extra is the `ref` for the released flag.
+Nesting is nearly free: 32 deep costs about the same per operation as 8 deep.
+A scope costs about the same as `with-owned`.  At the scale a request handler works at, none
 of this is on any critical path.
 
 Reproduce with `./run-benchmarks.sh resource` from the repository root.

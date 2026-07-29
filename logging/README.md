@@ -72,23 +72,23 @@ octets rather than writing anywhere:
 
 | what | n | ms | units/s |
 | --- | ---: | ---: | ---: |
-| `render`, 0 fields | 500 000 | 286 | 1 748 251 |
-| `render`, 8 fields | 500 000 | 1 925 | 259 740 |
-| `info` through the JSON handler, 0 fields | 500 000 | 282 | 1 773 049 |
-| `info` through the JSON handler, 8 fields | 500 000 | 1 964 | 254 582 |
-| `info` through `with-no-logger`, 8 fields | 500 000 | 12 | 41 666 666 |
+| `render`, 0 fields | 500 000 | 189 | 2 645 502 |
+| `render`, 8 fields | 500 000 | 1 159 | 431 406 |
+| `info` through the JSON handler, 0 fields | 500 000 | 216 | 2 314 814 |
+| `info` through the JSON handler, 8 fields | 500 000 | 1 181 | 423 370 |
+| `info` through `with-no-logger`, 8 fields | 500 000 | 9 | 55 555 555 |
 
-Three things fall out of that.  The effect dispatch is nearly free — 24 ns per
-call through a discarding handler, and the JSON rows are within 2% of calling
-`render` directly.  The cost is entirely in rendering: a bare record is about
-570 ns, and eight fields take it to about 3.9 µs.  And a *dropped* record —
-below `min` — costs the no-op row, not the rendering row, because the handler
-checks the severity before it renders.
+Three things fall out of that.  The effect dispatch is nearly free — 18 ns per
+call through a discarding handler, and the JSON rows sit about 50 ns above
+calling `render` directly.  The cost is in rendering: a bare record is about
+380 ns, and eight fields take it to about 2.3 µs, so a field costs roughly
+240 ns.  And a *dropped* record — below `min` — costs the no-op row, not the
+rendering row, because the handler checks the severity before it renders.
 
-Eight fields costing 3.3 µs more than none is more than it should be.  Each
-field is two `append-json-string` calls, and `append-json-escaped` walks the
-string as a character list, allocating as it goes.  A per-request log line at
-that price is fine; a debug line per loop iteration is not.
+Each field is two `append-json-string` calls, and `append-json-escaped` appends
+whole unescaped runs rather than single characters, so a value needing no
+escaping crosses into C once.  A per-request log line at that price is fine; a
+debug line per loop iteration is not.
 
 Reproduce with `./run-benchmarks.sh logging` from the repository root.
 

@@ -112,21 +112,21 @@ row includes disk latency:
 
 | what | n | ms | units/s |
 | --- | ---: | ---: | ---: |
-| insert via `run` (prepare per row) | 60 000 | 147 | 408 163 |
-| insert via one prepared statement | 60 000 | 53 | 1 132 075 |
-| insert inside one transaction | 60 000 | 47 | 1 276 595 |
-| insert with no explicit transaction | 60 000 | 76 | 789 473 |
-| `query-one`, primary key hit (4k rows) | 60 000 | 121 | 495 867 |
-| `query-one`, primary key hit (16k rows) | 60 000 | 121 | 495 867 |
-| `query`, full scan of 4k rows | 240 000 | 153 | 1 568 627 |
-| `query`, full scan of 16k rows | 240 000 | 147 | 1 632 653 |
+| insert via `run` (prepare per row) | 60 000 | 108 | 555 555 |
+| insert via one prepared statement | 60 000 | 39 | 1 538 461 |
+| insert inside one transaction | 60 000 | 39 | 1 538 461 |
+| insert with no explicit transaction | 60 000 | 67 | 895 522 |
+| `query-one`, primary key hit (4k rows) | 60 000 | 105 | 571 428 |
+| `query-one`, primary key hit (16k rows) | 60 000 | 109 | 550 458 |
+| `query`, full scan of 4k rows | 240 000 | 112 | 2 142 857 |
+| `query`, full scan of 16k rows | 240 000 | 113 | 2 123 893 |
 
-Preparing per row costs 2.8x what reusing one prepared statement does — 2.4 µs
-against 0.9 µs — which is what `with-statement` plus `reset` is worth.  An
-explicit transaction is worth 1.6x even in memory, where there is no fsync to
+Preparing per row costs 2.8x what reusing one prepared statement does — 1.8 µs
+against 0.65 µs — which is what `with-statement` plus `reset` is worth.  An
+explicit transaction is worth 1.7x even in memory, where there is no fsync to
 save; on disk the gap is far larger.  `query-one` is flat between 4 000 and
 16 000 rows, which is the index doing its job, and a full scan costs about
-0.6 µs per row either way.
+0.5 µs per row either way.
 
 Reproduce with `./run-benchmarks.sh sqlite` from the repository root.
 
