@@ -153,16 +153,15 @@ A yield costs about 590 ns, a `sleep(0)` about 1.1 µs — the difference is the
 round trip through libuv — and a spawn about 670 ns.  All three are flat in
 `n`, so nothing there is quadratic at these sizes.
 
-The last pair is the one to read carefully, and it used to be the bad news.
-The two channel rows differ only in capacity: at 16 the buffer never holds more
-than 16 items, and at 32 768 it holds everything that has been sent.  When
-`send` appended with `items ++ [x]` — O(length) — and `is-full` measured the
-buffer with `length`, the wide row cost **1 861 ms against the narrow row's
-6 ms, 310 times slower**, because the same 20 000 hand-offs were O(n²).  The
-buffer is now a two-list queue with its size kept alongside, so both are
-amortised O(1) and the wide row is 2 ms: the *narrow* row is now the slower of
-the two, and for the right reason — a channel at its capacity parks the
-producer, and each park is a round trip through the event loop.
+The last pair is the one to read carefully.  The two channel rows differ only
+in capacity: at 16 the buffer never holds more than 16 items, and at 32 768 it
+holds everything that has been sent.  The wide row is the *faster* of the two,
+and for the right reason — a channel at its capacity parks the producer, and
+each park is a round trip through the event loop.  That ordering is what says
+the buffer is amortised O(1): a `send` that appends with `items ++ [x]` and an
+`is-full` that measures with `length` make the same 20 000 hand-offs O(n²), and
+the wide row costs 1 861 ms rather than 2 ms.  A two-list queue carrying its
+own size is what keeps it off that curve.
 
 Reproduce with `./run-benchmarks.sh runtime` from the repository root.
 
